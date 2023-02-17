@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
@@ -128,11 +128,11 @@ namespace KBCore.Refs
             Type fieldType = field.FieldType;
 
             ISerializableRef iSerializable = null;
-            if (existingValue is ISerializableRef ser)
+            if (typeof(ISerializableRef).IsAssignableFrom(fieldType))
             {
-                iSerializable = ser;
-                fieldType = ser.RefType;
-                existingValue = ser.SerializedObject;
+                iSerializable = (ISerializableRef) (existingValue ?? Activator.CreateInstance(fieldType));
+                fieldType = iSerializable.RefType;
+                existingValue = iSerializable.SerializedObject;
             }
             
             bool isArray = fieldType.IsArray;
