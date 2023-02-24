@@ -121,7 +121,9 @@ SceneRefAttributeValidator.Validate(script);
 - Supports arrays but not `List`s. Feel free to submit a PR if you'd like to see this:
     - **Valid**: `[Child] Renderer[] _renderers;`
     - **Invalid**: `[Child] List<Renderer> _renderers;`
-- Currently does not support arrays of interfaces. Feel free to submit a PR if you'd like to see this. 
+- Support arrays of InterfaceRef<IInterface>.
+    - **Valid**: `[Child] InterfaceRef<IInterface>[] _interfaces;`
+    - **Invalid**: `[Child] InterfaceRef<IInterface[]> _interfaces;`
 
 ### License
 
