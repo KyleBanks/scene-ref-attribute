@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -138,6 +139,21 @@ namespace KBCore.Refs
             bool isArray = fieldType.IsArray;
             bool includeInactive = attr.HasFlags(Flag.IncludeInactive);
             
+            Type elementType = fieldType;
+            if (isArray)
+            {
+                elementType = fieldType.GetElementType();
+                if (typeof(ISerializableRef).IsAssignableFrom(elementType))
+                {
+                    var interfaceType = elementType.GetInterfaces().FirstOrDefault(type =>
+                        type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ISerializableRef<>));
+                    if (interfaceType != null)
+                    {
+                        elementType = interfaceType.GetGenericArguments()[0];
+                    }
+                }
+            }
+            
             object value = null;
             switch (attr.Loc)
             {
@@ -145,18 +161,18 @@ namespace KBCore.Refs
                     break;
                 case RefLoc.Self:
                     value = isArray
-                        ? c.GetComponents(fieldType.GetElementType())
-                        : c.GetComponent(fieldType);
+                        ? c.GetComponents(elementType)
+                        : c.GetComponent(elementType);
                     break;
                 case RefLoc.Parent:
                     value = isArray
-                        ? c.GetComponentsInParent(fieldType.GetElementType(), includeInactive)
-                        : c.GetComponentInParent(fieldType, includeInactive);
+                        ? c.GetComponentsInParent(elementType, includeInactive)
+                        : c.GetComponentInParent(elementType, includeInactive);
                     break;
                 case RefLoc.Child:
                     value = isArray
-                        ? c.GetComponentsInChildren(fieldType.GetElementType(), includeInactive)
-                        : c.GetComponentInChildren(fieldType, includeInactive);
+                        ? c.GetComponentsInChildren(elementType, includeInactive)
+                        : c.GetComponentInChildren(elementType, includeInactive);
                     break;
                 default:
                     throw new Exception($"Unhandled Loc={attr.Loc}");
@@ -167,13 +183,29 @@ namespace KBCore.Refs
             
             if (isArray)
             {
+                Type realElementType = fieldType.GetElementType();
+                
                 Array componentArray = (Array) value;
                 Array typedArray = Array.CreateInstance(
-                    fieldType.GetElementType() ?? throw new InvalidOperationException(),
+                    realElementType ?? throw new InvalidOperationException(),
                     componentArray.Length
                 );
-                Array.Copy(componentArray, typedArray, typedArray.Length);
-                value = typedArray;
+                
+                if (elementType == realElementType)
+                {
+                    Array.Copy(componentArray, typedArray, typedArray.Length);
+                    value = typedArray;    
+                }
+                else if (typeof(ISerializableRef).IsAssignableFrom(realElementType))
+                {
+                    for (var i = 0; i < typedArray.Length; i++)
+                    {
+                        var elementValue = Activator.CreateInstance(realElementType) as ISerializableRef;
+                        elementValue?.OnSerialize(componentArray.GetValue(i));
+                        typedArray.SetValue(elementValue, i);
+                    }
+                    value = typedArray;
+                }
             }
 
 
@@ -214,6 +246,7 @@ namespace KBCore.Refs
                 for (int i = 0; i < a.Length; i++)
                 {
                     object o = a.GetValue(i);
+                    if (o is ISerializableRef serObj) o = serObj.SerializedObject;
                     ValidateRefLocation(attr.Loc, c, field, (Component) o);
                 }
             }
