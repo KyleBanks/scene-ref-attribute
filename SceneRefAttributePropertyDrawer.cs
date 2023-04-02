@@ -92,16 +92,7 @@ namespace KBCore.Refs
         private bool CheckValue(SerializedProperty property)
         {
             bool hasValue = false;
-            if (property.isArray)
-            {
-                //property.isArray includes lists and arrays
-                hasValue = property.arraySize > 0;
-                for (int i = 0; i < property.arraySize; i++)
-                {
-                    // all array elements must have a value
-                    hasValue &= property.GetArrayElementAtIndex(i).objectReferenceValue != null;
-                }
-            } else if (property.propertyType == SerializedPropertyType.ObjectReference)
+            if (property.propertyType == SerializedPropertyType.ObjectReference)
             {
                 hasValue = property.objectReferenceValue != null;
             }
