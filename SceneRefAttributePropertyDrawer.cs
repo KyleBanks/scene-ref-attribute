@@ -14,6 +14,7 @@ namespace KBCore.Refs
     [CustomPropertyDrawer(typeof(SelfAttribute))]
     [CustomPropertyDrawer(typeof(ChildAttribute))]
     [CustomPropertyDrawer(typeof(ParentAttribute))]
+    [CustomPropertyDrawer(typeof(SceneAttribute))]
     public class SceneRefAttributePropertyDrawer : PropertyDrawer
     {
 
