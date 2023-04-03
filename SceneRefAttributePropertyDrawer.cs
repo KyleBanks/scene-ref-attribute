@@ -1,8 +1,7 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using UnityEditor;
 using UnityEngine;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace KBCore.Refs
@@ -18,32 +17,26 @@ namespace KBCore.Refs
     public class SceneRefAttributePropertyDrawer : PropertyDrawer
     {
 
-        bool isInitialized = false;
-        bool isValidFieldType;
-        Type elementType;
-        string typeName;
+        private bool _isInitialized;
+        private bool _canValidateType;
+        private Type _elementType;
+        private string _typeName;
 
-        SceneRefAttribute sceneRefAttribute => (SceneRefAttribute)attribute;
+        private SceneRefAttribute _sceneRefAttribute => (SceneRefAttribute) attribute;
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            if (!isInitialized)
-            {
-                Initialize(property);
-            }
+            if (!this._isInitialized)
+                this.Initialize(property);
 
-            if (isValidFieldType)
+            if (!this.IsSatisfied(property))
             {
-                bool isSatisfied = IsSatisfied(property);
-                if (!isSatisfied)
-                {
-                    Rect helpBoxPos = position;
-                    helpBoxPos.height = EditorGUIUtility.singleLineHeight * 2;
-                    string message = $"{property.propertyPath} missing {typeName} reference on {sceneRefAttribute.Loc}!";
-                    EditorGUI.HelpBox(helpBoxPos, message, MessageType.Error);
-                    position.height = EditorGUI.GetPropertyHeight(property, label);
-                    position.y += helpBoxPos.height;
-                }
+                Rect helpBoxPos = position;
+                helpBoxPos.height = EditorGUIUtility.singleLineHeight * 2;
+                string message = $"Missing {property.propertyPath} ({this._typeName}) reference on {this._sceneRefAttribute.Loc}!";
+                EditorGUI.HelpBox(helpBoxPos, message, MessageType.Error);
+                position.height = EditorGUI.GetPropertyHeight(property, label);
+                position.y += helpBoxPos.height;
             }
 
             bool wasEnabled = GUI.enabled;
@@ -52,61 +45,42 @@ namespace KBCore.Refs
             GUI.enabled = wasEnabled;
         }
 
-        void Initialize(SerializedProperty property)
+        private void Initialize(SerializedProperty property)
         {
-            isInitialized = true;
+            this._isInitialized = true;
 
-            // the type wont change, so we only need to initialize these values once
-
-            elementType = fieldInfo.FieldType;
-            if (typeof(ISerializableRef).IsAssignableFrom(elementType))
+            // the type won't change, so we only need to initialize these values once
+            this._elementType = this.fieldInfo.FieldType;
+            if (typeof(ISerializableRef).IsAssignableFrom(this._elementType))
             {
-                var interfaceType = elementType.GetInterfaces().FirstOrDefault(type =>
+                Type interfaceType = this._elementType.GetInterfaces().FirstOrDefault(type =>
                     type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ISerializableRef<>));
                 if (interfaceType != null)
-                {
-                    elementType = interfaceType.GetGenericArguments()[0];
-                }
+                    this._elementType = interfaceType.GetGenericArguments()[0];
             }
 
-            isValidFieldType = typeof(Component).IsAssignableFrom(elementType)
-                && (property.propertyType == SerializedPropertyType.ObjectReference);
+            this._canValidateType = typeof(Component).IsAssignableFrom(this._elementType)
+                                     && property.propertyType == SerializedPropertyType.ObjectReference;
 
-            typeName = fieldInfo.FieldType.Name;
-            if (fieldInfo.FieldType.IsGenericType && fieldInfo.FieldType.GenericTypeArguments.Length >= 1)
-            {
-                typeName = typeName.Replace("`1", $"<{fieldInfo.FieldType.GenericTypeArguments[0].Name}>");
-            }
+            this._typeName = this.fieldInfo.FieldType.Name;
+            if (this.fieldInfo.FieldType.IsGenericType && this.fieldInfo.FieldType.GenericTypeArguments.Length >= 1)
+                this._typeName = this._typeName.Replace("`1", $"<{this.fieldInfo.FieldType.GenericTypeArguments[0].Name}>");
         }
 
         /// <summary>Is this field Satisfied with a value or optional</summary>
         private bool IsSatisfied(SerializedProperty property)
         {
-            if (sceneRefAttribute.HasFlags(Flag.Optional))
-            {
+            if (!this._canValidateType || this._sceneRefAttribute.HasFlags(Flag.Optional))
                 return true;
-            }
-            return CheckValue(property);
-        }
-
-        private bool CheckValue(SerializedProperty property)
-        {
-            bool hasValue = false;
-            if (property.propertyType == SerializedPropertyType.ObjectReference)
-            {
-                hasValue = property.objectReferenceValue != null;
-            }
-            return hasValue;
+            return property.objectReferenceValue != null;
         }
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            float helpboxHeight = 0;
-            if (!IsSatisfied(property))
-            {
-                helpboxHeight = EditorGUIUtility.singleLineHeight * 2;
-            }
-            return EditorGUI.GetPropertyHeight(property, label) + helpboxHeight;
+            float helpBoxHeight = 0;
+            if (!this.IsSatisfied(property))
+                helpBoxHeight = EditorGUIUtility.singleLineHeight * 2;
+            return EditorGUI.GetPropertyHeight(property, label) + helpBoxHeight;
         }
     }
 }
