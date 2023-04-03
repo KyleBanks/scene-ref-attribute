@@ -99,7 +99,7 @@ namespace KBCore.Refs
         {
             if (requiredFields.Count == 0)
             {
-                Debug.LogError($"{c.GetType().Name} has no required fields", c.gameObject);
+                Debug.LogWarning($"{c.GetType().Name} has no required fields", c.gameObject);
                 return;
             }
 
@@ -145,12 +145,10 @@ namespace KBCore.Refs
                 elementType = fieldType.GetElementType();
                 if (typeof(ISerializableRef).IsAssignableFrom(elementType))
                 {
-                    var interfaceType = elementType.GetInterfaces().FirstOrDefault(type =>
+                    Type interfaceType = elementType?.GetInterfaces().FirstOrDefault(type =>
                         type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ISerializableRef<>));
                     if (interfaceType != null)
-                    {
                         elementType = interfaceType.GetGenericArguments()[0];
-                    }
                 }
             }
             
@@ -198,17 +196,16 @@ namespace KBCore.Refs
                 }
                 else if (typeof(ISerializableRef).IsAssignableFrom(realElementType))
                 {
-                    for (var i = 0; i < typedArray.Length; i++)
+                    for (int i = 0; i < typedArray.Length; i++)
                     {
-                        var elementValue = Activator.CreateInstance(realElementType) as ISerializableRef;
+                        ISerializableRef elementValue = Activator.CreateInstance(realElementType) as ISerializableRef;
                         elementValue?.OnSerialize(componentArray.GetValue(i));
                         typedArray.SetValue(elementValue, i);
                     }
                     value = typedArray;
                 }
             }
-
-
+            
             if (iSerializable != null)
             {
                 if (!iSerializable.OnSerialize(value))
