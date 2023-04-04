@@ -1,8 +1,12 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using UnityEditor;
 using UnityEngine;
 using System;
 using System.Linq;
+#if UNITY_2022_2_OR_NEWER
+using UnityEngine.UIElements;
+using UnityEditor.UIElements;
+#endif
 
 namespace KBCore.Refs
 {
@@ -14,6 +18,7 @@ namespace KBCore.Refs
     [CustomPropertyDrawer(typeof(SelfAttribute))]
     [CustomPropertyDrawer(typeof(ChildAttribute))]
     [CustomPropertyDrawer(typeof(ParentAttribute))]
+    [CustomPropertyDrawer(typeof(SceneAttribute))]
     public class SceneRefAttributePropertyDrawer : PropertyDrawer
     {
 
@@ -23,6 +28,77 @@ namespace KBCore.Refs
         private string _typeName;
 
         private SceneRefAttribute _sceneRefAttribute => (SceneRefAttribute) attribute;
+
+// unity 2022.2 makes UIToolkit the default for inspectors
+#if UNITY_2022_2_OR_NEWER
+        public readonly static string sceneRefClass = "kbcore-refs-sceneref";
+
+        private PropertyField _propertyField;
+        private HelpBox _helpBox;
+        private InspectorElement _inspectorElement;
+        private SerializedProperty _serializedProperty;
+
+        public override VisualElement CreatePropertyGUI(SerializedProperty property)
+        {
+            this._serializedProperty = property;
+            this.Initialize(property);
+
+            VisualElement root = new VisualElement();
+            root.AddToClassList(sceneRefClass);
+
+            this._helpBox = new HelpBox("", HelpBoxMessageType.Error);
+            this._helpBox.style.display = DisplayStyle.None;
+            root.Add(this._helpBox);
+
+            this._propertyField = new PropertyField(property);
+            this._propertyField.SetEnabled(false);
+            root.Add(this._propertyField);
+
+            if (this._canValidateType)
+            {
+                this.UpdateHelpBox();
+                this._propertyField.RegisterCallback<AttachToPanelEvent>(this.OnAttach);
+            }
+            return root;
+        }
+
+        private void OnAttach(AttachToPanelEvent attachToPanelEvent)
+        {
+            this._propertyField.UnregisterCallback<AttachToPanelEvent>(this.OnAttach);
+            this._inspectorElement = this._propertyField.GetFirstAncestorOfType<InspectorElement>();
+            if (this._inspectorElement == null)
+                // not in an inspector, invalid
+                return;
+
+            // subscribe to SerializedPropertyChangeEvent so we can update when the property changes
+            this._inspectorElement.RegisterCallback<SerializedPropertyChangeEvent>(this.OnSerializedPropertyChangeEvent);
+            this._propertyField.RegisterCallback<DetachFromPanelEvent>(this.OnDetach);
+        }
+
+        private void OnDetach(DetachFromPanelEvent detachFromPanelEvent)
+        {
+            // unregister from all callbacks
+            this._propertyField.UnregisterCallback<DetachFromPanelEvent>(this.OnDetach);
+            this._inspectorElement.UnregisterCallback<SerializedPropertyChangeEvent>(this.OnSerializedPropertyChangeEvent);
+            this._serializedProperty = null;
+        }
+
+        private void OnSerializedPropertyChangeEvent(SerializedPropertyChangeEvent changeEvent)
+        {
+            if (changeEvent.changedProperty != this._serializedProperty)
+                return;
+            this.UpdateHelpBox();
+        }
+
+        private void UpdateHelpBox()
+        {
+            bool isSatisfied = this.IsSatisfied(this._serializedProperty);
+            this._helpBox.style.display = isSatisfied ? DisplayStyle.None : DisplayStyle.Flex;
+            string message = $"Missing {this._serializedProperty.propertyPath} ({this._typeName}) reference on {this._sceneRefAttribute.Loc}!";
+            this._helpBox.text = message;
+        }
+
+#endif
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {

@@ -28,6 +28,11 @@ namespace KBCore.Refs
         /// using GetComponent(s)InChildren()
         /// </summary>
         Child = 2,
+        /// <summary>
+        /// Scene looks for the reference anywhere in the scene
+        /// using GameObject.FindAnyObjectByType() and GameObject.FindObjectsOfType()
+        /// </summary>
+        Scene = 4,
     }
     
     /// <summary>
@@ -114,6 +119,18 @@ namespace KBCore.Refs
     {
         public ChildAttribute(Flag flags = Flag.None) 
             : base(RefLoc.Child, flags: flags)
+        {}
+    }
+    
+    /// <summary>
+    /// Scene looks for the reference anywhere in the scene
+    /// using GameObject.FindAnyObjectByType() and GameObject.FindObjectsOfType()
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Field)]
+    public class SceneAttribute : SceneRefAttribute
+    {
+        public SceneAttribute(Flag flags = Flag.None) 
+            : base(RefLoc.Scene, flags: flags)
         {}
     }
 }
