@@ -52,7 +52,7 @@ You can declare their location inline using the `Self`, `Child`, `Parent`, `Scen
 [SerializeField, Self] private Collider _collider;
 [SerializeField, Child] private Renderer _renderer;
 [SerializeField, Parent] private Rigidbody _rigidbody;
-[SerializeField, Child]  private ParticleSystem[] _particles;
+[SerializeField, Child] private ParticleSystem[] _particles;
 [SerializeField, Anywhere] private Button _button;
 
 private void OnValidate()
