@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using UnityEditor;
 using UnityEngine;
 using System;
@@ -31,7 +31,7 @@ namespace KBCore.Refs
 
 // unity 2022.2 makes UIToolkit the default for inspectors
 #if UNITY_2022_2_OR_NEWER
-        public readonly static string sceneRefClass = "kbcore-refs-sceneref";
+        private const string SCENE_REF_CLASS = "kbcore-refs-sceneref";
 
         private PropertyField _propertyField;
         private HelpBox _helpBox;
@@ -44,7 +44,7 @@ namespace KBCore.Refs
             this.Initialize(property);
 
             VisualElement root = new VisualElement();
-            root.AddToClassList(sceneRefClass);
+            root.AddToClassList(SCENE_REF_CLASS);
 
             this._helpBox = new HelpBox("", HelpBoxMessageType.Error);
             this._helpBox.style.display = DisplayStyle.None;
