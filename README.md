@@ -19,14 +19,18 @@ For more details on how this project came about, check out this [Farewell North 
 Instead of declaring your references, finding them in `Awake` or assigning them in the editor, and then validating them in `OnValidate` like so: 
 
 ```cs
+// BEFORE
+
 [SerializeField] private Player _player; 
 [SerializeField] private Collider _collider;
 [SerializeField] private Renderer _renderer;
 [SerializeField] private Rigidbody _rigidbody;
 [SerializeField] private ParticleSystem[] _particles;
+[SerializeField] private Button _button;
 
 private void Awake()
 {
+    this._player = Object.FindObjectByType<Player>();
     this._collider = this.GetComponent<Collider>();
     this._renderer = this.GetComponentInChildren<Renderer>();
     this._rigidbody = this.GetComponentInParent<Rigidbody>();
@@ -35,18 +39,21 @@ private void Awake()
 
 private void OnValidate()
 {
-    Debug.Assert(this._player != null, "Player must be assigned in the editor");
+    Debug.Assert(this._button != null, "Button must be assigned in the editor");
 }
 ```
 
-You can declare their location inline using the `Self`, `Child`, `Parent` and `Anywhere` attributes:
+You can declare their location inline using the `Self`, `Child`, `Parent`, `Scene` and `Anywhere` attributes:
 
 ```cs
-[SerializeField, Anywhere] private Player _player; 
+// AFTER
+
+[SerializeField, Scene] private Player _player; 
 [SerializeField, Self] private Collider _collider;
 [SerializeField, Child] private Renderer _renderer;
 [SerializeField, Parent] private Rigidbody _rigidbody;
 [SerializeField, Child]  private ParticleSystem[] _particles;
+[SerializeField, Anywhere] private Button _button;
 
 private void OnValidate()
 {
@@ -56,12 +63,16 @@ private void OnValidate()
 
 The `ValidateRefs` function is made available as a `MonoBehaviour` extension for ease of use, and handles finding, validating and serialisating the references in the editor so they're always available at runtime. 
 
-### Serialising Interfaces
+### Serialising Interfaces 
 
 By default Unity doesn't allow you to serialise interfaces, but this project allows it by wrapping them with the `InterfaceRef` type, like so:
 
 ```cs
-[SerializeField, Self] private InterfaceRef<IDoorOpener> _doorOpener;
+// Single interface
+[SerializeField, Self] private InterfaceRef<IDoorOpener> _doorOpener; 
+
+// Array of interfaces
+[SerializeField, Self] private InterfaceRef<IDoorOpener>[] _doorOpeners; 
 ```
 
 From here they'll be serialised like any other component reference, with the interface available using `.Value`: 
@@ -76,6 +87,7 @@ doorOpener.OpenDoor();
 - `Self` looks for the reference on the same game object as the attributed component using `GetComponent(s)()`
 - `Parent` looks for the reference on the parent hierarchy of the attributed components game object using `GetComponent(s)InParent()`
 - `Child` looks for the reference on the child hierarchy of the attributed components game object using `GetComponent(s)InChildren()`
+- `Scene` looks for the reference anywhere in the scene using `FindAnyObjectByType` and `FindObjectsOfType`
 - `Anywhere` will only validate the reference isn't null, but relies on you to assign the reference yourself.
 
 ### Flags
@@ -98,16 +110,16 @@ private ParticleSystem[] _particles;
 ```
 
 - `Optional` won't fail validation for empty (or null in the case of non-array types) results.
-- `IncludeInactive` only affects `Parent` and `Child`, and determines whether inactive components are included in the results. By default, only active components will be found, same as `GetComponent(s)InChildren` and `GetComponent(s)InParent`. 
+- `IncludeInactive` only affects `Parent`. `Child` and `Scene`, and determines whether inactive components are included in the results. By default, only active components will be found, same as `GetComponent(s)InChildren`, `GetComponent(s)InParent` and `FindObjectsOfType`. 
 
 
 ### Features 
 
-- Supports all `MonoBehaviour` and `Component` types (basically anything you can use with `GetComponent`) 
-- Determinate results, so there's no worry of Unity losing all your serialised references (which has happened to me a few times on upgrading editor versions). All references will be reassigned automatically.  
+- Supports all `MonoBehaviour` and `Component` types (basically anything you can use with `GetComponent`), including interfaces
+- Determinate results, so there's no worry of Unity forgetting all your serialised references (which has happened to me a few times on upgrading editor versions). All references will be reassigned automatically.  
 - Fast, this tool won't slow down your editor or generate excessive garbage. 
 - Fully serialised at edit time, so all references are already available at runtime
-- The `ValidateRefs` function is made available as a `MonoBehaviour` extension for ease of use. You can also invoke it outside of a `MonoBehaviour` like so, if preferred: 
+- The `ValidateRefs()` function is made available as a `MonoBehaviour` extension for ease of use. You can also invoke it outside of a `MonoBehaviour` like so, if preferred: 
 ```cs
 MyScript script = ...;
 SceneRefAttributeValidator.Validate(script);
@@ -121,9 +133,6 @@ SceneRefAttributeValidator.Validate(script);
 - Supports arrays but not `List`s. Feel free to submit a PR if you'd like to see this:
     - **Valid**: `[Child] Renderer[] _renderers;`
     - **Invalid**: `[Child] List<Renderer> _renderers;`
-- Support arrays of InterfaceRef<IInterface>.
-    - **Valid**: `[Child] InterfaceRef<IInterface>[] _interfaces;`
-    - **Invalid**: `[Child] InterfaceRef<IInterface[]> _interfaces;`
 
 ### License
 
