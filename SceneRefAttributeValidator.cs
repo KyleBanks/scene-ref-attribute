@@ -13,9 +13,9 @@ namespace KBCore.Refs
 {
     public static class SceneRefAttributeValidator
     {
-        
+
 #if UNITY_EDITOR
-        private static readonly List<ReflectionUtil.AttributedField<SceneRefAttribute>> ATTRIBUTED_FIELDS_CACHE = new();
+        private static readonly List<ReflectionUtil.AttributedField<SceneRefAttribute>> ATTRIBUTED_FIELDS_CACHE = new List<ReflectionUtil.AttributedField<SceneRefAttribute>>();
 
         /// <summary>
         /// Validate all references for every script and every game object in the scene.
@@ -160,24 +160,24 @@ namespace KBCore.Refs
                     break;
                 case RefLoc.Self:
                     value = isArray
-                        ? c.GetComponents(elementType)
-                        : c.GetComponent(elementType);
+                        ? (object)c.GetComponents(elementType)
+                        : (object)c.GetComponent(elementType);
                     break;
                 case RefLoc.Parent:
                     value = isArray
-                        ? c.GetComponentsInParent(elementType, includeInactive)
-                        : c.GetComponentInParent(elementType, includeInactive);
+                        ? (object)c.GetComponentsInParent(elementType, includeInactive)
+                        : (object)c.GetComponentInParent(elementType, includeInactive);
                     break;
                 case RefLoc.Child:
                     value = isArray
-                        ? c.GetComponentsInChildren(elementType, includeInactive)
-                        : c.GetComponentInChildren(elementType, includeInactive);
+                        ? (object)c.GetComponentsInChildren(elementType, includeInactive)
+                        : (object)c.GetComponentInChildren(elementType, includeInactive);
                     break;
                 case RefLoc.Scene:
                     FindObjectsSortMode findObjectsSortMode = FindObjectsSortMode.None;
                     value = isArray
-                        ? GameObject.FindObjectsByType(elementType, includeInactiveObjects, findObjectsSortMode)
-                        : GameObject.FindAnyObjectByType(elementType, includeInactiveObjects);
+                        ? (object)GameObject.FindObjectsByType(elementType, includeInactiveObjects, findObjectsSortMode)
+                        : (object)GameObject.FindAnyObjectByType(elementType, includeInactiveObjects);
                     break;
                 default:
                     throw new Exception($"Unhandled Loc={attr.Loc}");
@@ -251,12 +251,25 @@ namespace KBCore.Refs
                 {
                     object o = a.GetValue(i);
                     if (o is ISerializableRef serObj) o = serObj.SerializedObject;
-                    ValidateRefLocation(attr.Loc, c, field, (Component) o);
+                    ValidateRefLocation(attr.Loc, c, field, o);
                 }
             }
             else
             {
-                ValidateRefLocation(attr.Loc, c, field, (Component) value);
+                ValidateRefLocation(attr.Loc, c, field, value);
+            }
+        }
+
+        private static void ValidateRefLocation(RefLoc loc, Component c, FieldInfo field, object refObj)
+        {
+            switch (refObj)
+            {
+                case Component valueC:
+                    ValidateRefLocation(loc, c, field, valueC);
+                    break;
+                case ScriptableObject valueSO:
+                    ValidateRefLocation(loc, c, field, valueSO);
+                    break;
             }
         }
 
@@ -285,6 +298,24 @@ namespace KBCore.Refs
                 case RefLoc.Scene:
                     if (c == null)
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be in the scene", c.gameObject);
+                    break;
+
+                default:
+                    throw new Exception($"Unhandled Loc={loc}");
+            }
+        }
+
+        private static void ValidateRefLocation(RefLoc loc, Component c, FieldInfo field, ScriptableObject refObj)
+        {
+            switch (loc)
+            {
+                case RefLoc.Anywhere:
+                    break;
+
+                case RefLoc.Self:
+                case RefLoc.Parent:
+                case RefLoc.Child:
+                    Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be a Anywhere only", c.gameObject);
                     break;
 
                 default:
