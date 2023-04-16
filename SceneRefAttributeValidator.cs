@@ -160,24 +160,24 @@ namespace KBCore.Refs
                     break;
                 case RefLoc.Self:
                     value = isArray
-                        ? (object)c.GetComponents(elementType)
-                        : (object)c.GetComponent(elementType);
+                        ? c.GetComponents(elementType)
+                        : c.GetComponent(elementType);
                     break;
                 case RefLoc.Parent:
                     value = isArray
-                        ? (object)c.GetComponentsInParent(elementType, includeInactive)
-                        : (object)c.GetComponentInParent(elementType, includeInactive);
+                        ? c.GetComponentsInParent(elementType, includeInactive)
+                        : c.GetComponentInParent(elementType, includeInactive);
                     break;
                 case RefLoc.Child:
                     value = isArray
-                        ? (object)c.GetComponentsInChildren(elementType, includeInactive)
-                        : (object)c.GetComponentInChildren(elementType, includeInactive);
+                        ? c.GetComponentsInChildren(elementType, includeInactive)
+                        : c.GetComponentInChildren(elementType, includeInactive);
                     break;
                 case RefLoc.Scene:
                     FindObjectsSortMode findObjectsSortMode = FindObjectsSortMode.None;
                     value = isArray
-                        ? (object)GameObject.FindObjectsByType(elementType, includeInactiveObjects, findObjectsSortMode)
-                        : (object)GameObject.FindAnyObjectByType(elementType, includeInactiveObjects);
+                        ? GameObject.FindObjectsByType(elementType, includeInactiveObjects, findObjectsSortMode)
+                        : GameObject.FindAnyObjectByType(elementType, includeInactiveObjects);
                     break;
                 default:
                     throw new Exception($"Unhandled Loc={attr.Loc}");
@@ -270,6 +270,8 @@ namespace KBCore.Refs
                 case ScriptableObject valueSO:
                     ValidateRefLocation(loc, c, field, valueSO);
                     break;
+                default:
+                    throw new Exception($"{c.GetType().Name} has unexpected reference type {refObj.GetType().Name}");
             }
         }
 
@@ -315,7 +317,7 @@ namespace KBCore.Refs
                 case RefLoc.Self:
                 case RefLoc.Parent:
                 case RefLoc.Child:
-                    Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be a Anywhere only", c.gameObject);
+                    Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be Anywhere", c.gameObject);
                     break;
 
                 default:
