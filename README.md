@@ -61,7 +61,7 @@ private void OnValidate()
 }
 ```
 
-The `ValidateRefs` function is made available as a `MonoBehaviour` extension for ease of use, and handles finding, validating and serialisating the references in the editor so they're always available at runtime. 
+The `ValidateRefs` function is made available as a `MonoBehaviour` extension for ease of use on any `MonoBehaviour` subclass, and handles finding, validating and serialisating the references in the editor so they're always available at runtime. Alternatively you can extend `ValidatedMonoBehaviour` instead and `ValidateRefs` will be invoked automatically. 
 
 ### Serialising Interfaces 
 
