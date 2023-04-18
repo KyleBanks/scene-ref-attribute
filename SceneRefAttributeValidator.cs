@@ -62,7 +62,15 @@ namespace KBCore.Refs
         /// </summary>
         [MenuItem("CONTEXT/Component/Validate Refs")]
         private static void ValidateRefs(MenuCommand menuCommand) 
-            => ValidateRefs(menuCommand.context as Component);
+            => Validate(menuCommand.context as Component);
+        
+        /// <summary>
+        /// Clean and validate a single components references. Useful in instances where (for example) Unity has 
+        /// incorrectly serialized a scene reference within a prefab. 
+        /// </summary>
+        [MenuItem("CONTEXT/Component/Clean and Validate Refs")]
+        private static void CleanValidateRefs(MenuCommand menuCommand) 
+            => CleanValidate(menuCommand.context as Component);
         
         /// <summary>
         /// Validate a single components references, attempting to assign missing references
@@ -84,6 +92,28 @@ namespace KBCore.Refs
                     ATTRIBUTED_FIELDS_CACHE,
                     BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance
                 );
+                Validate(c, ATTRIBUTED_FIELDS_CACHE);
+            }
+            finally
+            {
+                ATTRIBUTED_FIELDS_CACHE.Clear();
+            }
+        }
+        
+        /// <summary>
+        /// Clean and validate a single components references. Useful in instances where (for example) Unity has 
+        /// incorrectly serialized a scene reference within a prefab. 
+        /// </summary>
+        public static void CleanValidate(Component c)
+        {
+            try
+            {
+                ReflectionUtil.GetFieldsWithAttributeFromType(
+                    c.GetType(),
+                    ATTRIBUTED_FIELDS_CACHE,
+                    BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance
+                );
+                Clean(c, ATTRIBUTED_FIELDS_CACHE);
                 Validate(c, ATTRIBUTED_FIELDS_CACHE);
             }
             finally
@@ -123,6 +153,21 @@ namespace KBCore.Refs
                 ValidateRef(attribute, c, field, fieldValue);
             }
         }
+        
+        private static void Clean(
+            Component c, 
+            List<ReflectionUtil.AttributedField<SceneRefAttribute>> requiredFields
+        )
+        {
+            for (int i = 0; i < requiredFields.Count; i++)
+            {
+                ReflectionUtil.AttributedField<SceneRefAttribute> attributedField = requiredFields[i];
+                FieldInfo field = attributedField.FieldInfo;
+
+                field.SetValue(c, null);
+                EditorUtility.SetDirty(c);
+            }
+        }
 
         private static object UpdateRef(SceneRefAttribute attr, Component c, FieldInfo field, object existingValue)
         {
@@ -138,7 +183,6 @@ namespace KBCore.Refs
             
             bool isArray = fieldType.IsArray;
             bool includeInactive = attr.HasFlags(Flag.IncludeInactive);
-            FindObjectsInactive includeInactiveObjects = includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude;
             
             Type elementType = fieldType;
             if (isArray)
@@ -174,10 +218,11 @@ namespace KBCore.Refs
                         : c.GetComponentInChildren(elementType, includeInactive);
                     break;
                 case RefLoc.Scene:
-                    FindObjectsSortMode findObjectsSortMode = FindObjectsSortMode.None;
+                    const FindObjectsSortMode findObjectsSortMode = FindObjectsSortMode.None;
+                    FindObjectsInactive includeInactiveObjects = includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude;
                     value = isArray
-                        ? GameObject.FindObjectsByType(elementType, includeInactiveObjects, findObjectsSortMode)
-                        : GameObject.FindAnyObjectByType(elementType, includeInactiveObjects);
+                        ? Object.FindObjectsByType(elementType, includeInactiveObjects, findObjectsSortMode)
+                        : Object.FindAnyObjectByType(elementType, includeInactiveObjects);
                     break;
                 default:
                     throw new Exception($"Unhandled Loc={attr.Loc}");
