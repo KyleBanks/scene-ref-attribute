@@ -13,9 +13,9 @@ namespace KBCore.Refs
 {
     public static class SceneRefAttributeValidator
     {
-        
+
 #if UNITY_EDITOR
-        private static readonly List<ReflectionUtil.AttributedField<SceneRefAttribute>> ATTRIBUTED_FIELDS_CACHE = new();
+        private static readonly List<ReflectionUtil.AttributedField<SceneRefAttribute>> ATTRIBUTED_FIELDS_CACHE = new List<ReflectionUtil.AttributedField<SceneRefAttribute>>();
 
         /// <summary>
         /// Validate all references for every script and every game object in the scene.
@@ -296,12 +296,27 @@ namespace KBCore.Refs
                 {
                     object o = a.GetValue(i);
                     if (o is ISerializableRef serObj) o = serObj.SerializedObject;
-                    ValidateRefLocation(attr.Loc, c, field, (Component) o);
+                    ValidateRefLocation(attr.Loc, c, field, o);
                 }
             }
             else
             {
-                ValidateRefLocation(attr.Loc, c, field, (Component) value);
+                ValidateRefLocation(attr.Loc, c, field, value);
+            }
+        }
+
+        private static void ValidateRefLocation(RefLoc loc, Component c, FieldInfo field, object refObj)
+        {
+            switch (refObj)
+            {
+                case Component valueC:
+                    ValidateRefLocation(loc, c, field, valueC);
+                    break;
+                case ScriptableObject valueSO:
+                    ValidateRefLocation(loc, c, field, valueSO);
+                    break;
+                default:
+                    throw new Exception($"{c.GetType().Name} has unexpected reference type {refObj.GetType().Name}");
             }
         }
 
@@ -330,6 +345,24 @@ namespace KBCore.Refs
                 case RefLoc.Scene:
                     if (c == null)
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be in the scene", c.gameObject);
+                    break;
+
+                default:
+                    throw new Exception($"Unhandled Loc={loc}");
+            }
+        }
+
+        private static void ValidateRefLocation(RefLoc loc, Component c, FieldInfo field, ScriptableObject refObj)
+        {
+            switch (loc)
+            {
+                case RefLoc.Anywhere:
+                    break;
+
+                case RefLoc.Self:
+                case RefLoc.Parent:
+                case RefLoc.Child:
+                    Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be Anywhere", c.gameObject);
                     break;
 
                 default:
