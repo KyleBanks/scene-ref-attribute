@@ -14,9 +14,10 @@ namespace KBCore.Refs
     public static class SceneRefAttributeValidator
     {
 
-#if UNITY_EDITOR
+
         private static readonly List<ReflectionUtil.AttributedField<SceneRefAttribute>> ATTRIBUTED_FIELDS_CACHE = new List<ReflectionUtil.AttributedField<SceneRefAttribute>>();
 
+#if UNITY_EDITOR
         /// <summary>
         /// Validate all references for every script and every game object in the scene.
         /// </summary>
@@ -47,7 +48,7 @@ namespace KBCore.Refs
 
                     Debug.Log($"Validating {ATTRIBUTED_FIELDS_CACHE.Count} field(s) on {objects.Length} {objects[0].GetType().Name} instance(s)");
                     for (int o = 0; o < objects.Length; o++)
-                        Validate(objects[o] as MonoBehaviour, ATTRIBUTED_FIELDS_CACHE);
+                        Validate(objects[o] as MonoBehaviour, ATTRIBUTED_FIELDS_CACHE, false);
                 }
                 finally
                 {
@@ -71,19 +72,20 @@ namespace KBCore.Refs
         [MenuItem("CONTEXT/Component/Clean and Validate Refs")]
         private static void CleanValidateRefs(MenuCommand menuCommand) 
             => CleanValidate(menuCommand.context as Component);
+#endif
+
+        /// <summary>
+        /// Validate a single components references, attempting to assign missing references
+        /// and logging errors as necessary.
+        /// </summary>
+        public static void ValidateRefs(this Component c, bool updateAtRuntime = false)
+            => Validate(c, updateAtRuntime);
         
         /// <summary>
         /// Validate a single components references, attempting to assign missing references
         /// and logging errors as necessary.
         /// </summary>
-        public static void ValidateRefs(this Component c)
-            => Validate(c);
-        
-        /// <summary>
-        /// Validate a single components references, attempting to assign missing references
-        /// and logging errors as necessary.
-        /// </summary>
-        public static void Validate(Component c)
+        public static void Validate(Component c, bool updateAtRuntime = false)
         {
             try
             {
@@ -92,7 +94,7 @@ namespace KBCore.Refs
                     ATTRIBUTED_FIELDS_CACHE,
                     BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance
                 );
-                Validate(c, ATTRIBUTED_FIELDS_CACHE);
+                Validate(c, ATTRIBUTED_FIELDS_CACHE, updateAtRuntime);
             }
             finally
             {
@@ -104,7 +106,7 @@ namespace KBCore.Refs
         /// Clean and validate a single components references. Useful in instances where (for example) Unity has 
         /// incorrectly serialized a scene reference within a prefab. 
         /// </summary>
-        public static void CleanValidate(Component c)
+        public static void CleanValidate(Component c, bool updateAtRuntime = false)
         {
             try
             {
@@ -114,7 +116,7 @@ namespace KBCore.Refs
                     BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance
                 );
                 Clean(c, ATTRIBUTED_FIELDS_CACHE);
-                Validate(c, ATTRIBUTED_FIELDS_CACHE);
+                Validate(c, ATTRIBUTED_FIELDS_CACHE, updateAtRuntime);
             }
             finally
             {
@@ -124,7 +126,8 @@ namespace KBCore.Refs
 
         private static void Validate(
             Component c, 
-            List<ReflectionUtil.AttributedField<SceneRefAttribute>> requiredFields
+            List<ReflectionUtil.AttributedField<SceneRefAttribute>> requiredFields,
+            bool updateAtRuntime
         )
         {
             if (requiredFields.Count == 0)
@@ -144,7 +147,7 @@ namespace KBCore.Refs
                     throw new Exception($"{c.GetType().Name} cannot serialize interface {field.Name} directly, use InterfaceRef instead");
                 
                 object fieldValue = field.GetValue(c);
-                if (!Application.isPlaying)
+                if (updateAtRuntime || !Application.isPlaying)
                     fieldValue = UpdateRef(attribute, c, field, fieldValue);
 
                 if (isUninstantiatedPrefab)
@@ -165,7 +168,9 @@ namespace KBCore.Refs
                 FieldInfo field = attributedField.FieldInfo;
 
                 field.SetValue(c, null);
+#if UNITY_EDITOR
                 EditorUtility.SetDirty(c);
+#endif
             }
         }
 
@@ -270,7 +275,9 @@ namespace KBCore.Refs
                 field.SetValue(c, value);
             }
             
+#if UNITY_EDITOR
             EditorUtility.SetDirty(c);
+#endif
             return value;
         }
 
@@ -377,10 +384,6 @@ namespace KBCore.Refs
             
             return obj == null || obj.Equals(null) || (isArray && ((Array)obj).Length == 0);
         }
-#else
-        public static void ValidateRefs(this Component c) {}
-        public static void Validate(Component c) {}        
-#endif
         
     }
 }
