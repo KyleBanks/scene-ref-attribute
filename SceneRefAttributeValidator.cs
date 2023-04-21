@@ -179,6 +179,8 @@ namespace KBCore.Refs
         private static object UpdateRef(SceneRefAttribute attr, Component c, FieldInfo field, object existingValue)
         {
             Type fieldType = field.FieldType;
+            bool isArray = fieldType.IsArray;
+            bool includeInactive = attr.HasFlags(Flag.IncludeInactive);
 
             ISerializableRef iSerializable = null;
             if (typeof(ISerializableRef).IsAssignableFrom(fieldType))
@@ -187,9 +189,16 @@ namespace KBCore.Refs
                 fieldType = iSerializable.RefType;
                 existingValue = iSerializable.SerializedObject;
             }
-            
-            bool isArray = fieldType.IsArray;
-            bool includeInactive = attr.HasFlags(Flag.IncludeInactive);
+
+            if (attr.HasFlags(Flag.Editable))
+            {
+                var isFilledArray = isArray && (existingValue as UnityEngine.Object[]).Length > 0;
+                if (isFilledArray || existingValue as UnityEngine.Object != null)
+                {
+                    // If the field is editable and the value has already been set, keep it.
+                    return existingValue;
+                }
+            }
             
             Type elementType = fieldType;
             if (isArray)

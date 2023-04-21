@@ -116,7 +116,7 @@ namespace KBCore.Refs
             }
 
             bool wasEnabled = GUI.enabled;
-            GUI.enabled = false;
+            GUI.enabled = this._sceneRefAttribute.HasFlags(Flag.Editable);
             EditorGUI.PropertyField(position, property, label, true);
             GUI.enabled = wasEnabled;
         }
