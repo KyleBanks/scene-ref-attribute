@@ -270,7 +270,8 @@ namespace KBCore.Refs
             }
             else
             {
-                if (existingValue != null && value.Equals(existingValue))
+                var valuesAreEqual = isArray ? Enumerable.SequenceEqual((object[])value, (object[])existingValue) : value.Equals(existingValue);
+                if (existingValue != null && valuesAreEqual)
                     return existingValue;
                 field.SetValue(c, value);
             }
