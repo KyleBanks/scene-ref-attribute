@@ -14,7 +14,6 @@ namespace KBCore.Refs
     public static class SceneRefAttributeValidator
     {
 
-
         private static readonly List<ReflectionUtil.AttributedField<SceneRefAttribute>> ATTRIBUTED_FIELDS_CACHE = new List<ReflectionUtil.AttributedField<SceneRefAttribute>>();
 
 #if UNITY_EDITOR
@@ -165,8 +164,11 @@ namespace KBCore.Refs
             for (int i = 0; i < requiredFields.Count; i++)
             {
                 ReflectionUtil.AttributedField<SceneRefAttribute> attributedField = requiredFields[i];
+                SceneRefAttribute attribute = attributedField.Attribute;
+                if (attribute.Loc == RefLoc.Anywhere) 
+                    continue;
+                
                 FieldInfo field = attributedField.FieldInfo;
-
                 field.SetValue(c, null);
 #if UNITY_EDITOR
                 EditorUtility.SetDirty(c);
@@ -223,10 +225,9 @@ namespace KBCore.Refs
                         : c.GetComponentInChildren(elementType, includeInactive);
                     break;
                 case RefLoc.Scene:
-                    const FindObjectsSortMode findObjectsSortMode = FindObjectsSortMode.None;
                     FindObjectsInactive includeInactiveObjects = includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude;
                     value = isArray
-                        ? Object.FindObjectsByType(elementType, includeInactiveObjects, findObjectsSortMode)
+                        ? Object.FindObjectsByType(elementType, includeInactiveObjects, FindObjectsSortMode.None)
                         : Object.FindAnyObjectByType(elementType, includeInactiveObjects);
                     break;
                 default:
@@ -270,8 +271,8 @@ namespace KBCore.Refs
             }
             else
             {
-                var valuesAreEqual = isArray ? Enumerable.SequenceEqual((object[])value, (object[])existingValue) : value.Equals(existingValue);
-                if (existingValue != null && valuesAreEqual)
+                var valuesAreEqual = existingValue != null && (isArray ? Enumerable.SequenceEqual((object[])value, (object[])existingValue) : value.Equals(existingValue));
+                if (valuesAreEqual)
                     return existingValue;
                 field.SetValue(c, value);
             }
