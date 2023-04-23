@@ -9,6 +9,8 @@ namespace KBCore.Refs
         {
             this.ValidateRefs();
         }
+#else
+        protected virtual void OnValidate() { }
 #endif
     }
 }
