@@ -48,11 +48,16 @@ namespace KBCore.Refs
         /// <summary>
         /// Allow empty (or null in the case of non-array types) results.
         /// </summary>
-        Optional = 1,
+        Optional = 1 << 0,
         /// <summary>
         /// Include inactive components in the results (only applies to Child and Parent). 
         /// </summary>
-        IncludeInactive = 2,
+        IncludeInactive = 1 << 1,
+        /// <summary>
+        /// Allows the user to override the automatic selection. Will still validate that
+        /// the field location (self, child, etc) matches as expected.
+        /// </summary>
+        Editable = 1 << 2,
     }
     
     /// <summary>
