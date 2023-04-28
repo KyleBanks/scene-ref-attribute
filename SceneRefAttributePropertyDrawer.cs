@@ -28,6 +28,7 @@ namespace KBCore.Refs
         private string _typeName;
 
         private SceneRefAttribute _sceneRefAttribute => (SceneRefAttribute) attribute;
+        private bool _editable => this._sceneRefAttribute.HasFlags(Flag.Editable);
 
 // unity 2022.2 makes UIToolkit the default for inspectors
 #if UNITY_2022_2_OR_NEWER
@@ -43,7 +44,7 @@ namespace KBCore.Refs
             this._serializedProperty = property;
             this.Initialize(property);
 
-            VisualElement root = new VisualElement();
+            VisualElement root = new();
             root.AddToClassList(SCENE_REF_CLASS);
 
             this._helpBox = new HelpBox("", HelpBoxMessageType.Error);
@@ -51,7 +52,7 @@ namespace KBCore.Refs
             root.Add(this._helpBox);
 
             this._propertyField = new PropertyField(property);
-            this._propertyField.SetEnabled(false);
+            this._propertyField.SetEnabled(this._editable);
             root.Add(this._propertyField);
 
             if (this._canValidateType)
@@ -97,7 +98,6 @@ namespace KBCore.Refs
             string message = $"Missing {this._serializedProperty.propertyPath} ({this._typeName}) reference on {this._sceneRefAttribute.Loc}!";
             this._helpBox.text = message;
         }
-
 #endif
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
@@ -116,7 +116,7 @@ namespace KBCore.Refs
             }
 
             bool wasEnabled = GUI.enabled;
-            GUI.enabled = this._sceneRefAttribute.HasFlags(Flag.Editable);
+            GUI.enabled = this._editable;
             EditorGUI.PropertyField(position, property, label, true);
             GUI.enabled = wasEnabled;
         }
