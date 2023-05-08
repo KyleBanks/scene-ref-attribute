@@ -217,7 +217,7 @@ namespace KBCore.Refs
             switch (attr.Loc)
             {
                 case RefLoc.Anywhere:
-                    if (typeof(ISerializableRef).IsAssignableFrom(isArray ? fieldType.GetElementType() : fieldType))
+                    if (isArray ? typeof(ISerializableRef).IsAssignableFrom(fieldType.GetElementType()) : iSerializable != null)
                         value = isArray
                             ? (existingValue as ISerializableRef[])?.Select(existingRef => GetComponentIfWrongType(existingRef.SerializedObject, elementType)).ToArray()
                             : GetComponentIfWrongType(existingValue, elementType);
