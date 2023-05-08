@@ -192,8 +192,8 @@ namespace KBCore.Refs
 
             if (attr.HasFlags(Flag.Editable))
             {
-                var isFilledArray = isArray && (existingValue as UnityEngine.Object[]).Length > 0;
-                if (isFilledArray || existingValue as UnityEngine.Object != null)
+                var isFilledArray = isArray && (existingValue as Object[])?.Length > 0;
+                if (isFilledArray || existingValue as Object != null)
                 {
                     // If the field is editable and the value has already been set, keep it.
                     return existingValue;
@@ -217,6 +217,10 @@ namespace KBCore.Refs
             switch (attr.Loc)
             {
                 case RefLoc.Anywhere:
+                    if (typeof(ISerializableRef).IsAssignableFrom(isArray ? fieldType.GetElementType() : fieldType))
+                        value = isArray
+                            ? (existingValue as ISerializableRef[])?.Select(existingRef => GetComponentIfWrongType(existingRef.SerializedObject, elementType)).ToArray()
+                            : GetComponentIfWrongType(existingValue, elementType);
                     break;
                 case RefLoc.Self:
                     value = isArray
@@ -292,6 +296,14 @@ namespace KBCore.Refs
             return value;
         }
 
+        private static object GetComponentIfWrongType(object existingValue, Type elementType)
+        {
+            if (existingValue is Component existingComponent && existingComponent && !elementType.IsInstanceOfType(existingValue))
+                return existingComponent.GetComponent(elementType);
+            else
+                return existingValue;
+        }
+
         private static void ValidateRef(SceneRefAttribute attr, Component c, FieldInfo field, object value)
         {
             Type fieldType = field.FieldType;
@@ -303,7 +315,11 @@ namespace KBCore.Refs
             if (IsEmptyOrNull(value, isArray))
             {
                 if (!attr.HasFlags(Flag.Optional))
-                    Debug.LogError($"{c.GetType().Name} missing required {fieldType.Name} ref '{field.Name}'", c.gameObject);
+                {
+                    Type elementType = isArray ? fieldType.GetElementType() : fieldType;
+                    elementType = typeof(ISerializableRef).IsAssignableFrom(elementType) ? elementType?.GetGenericArguments()[0] : elementType;
+                    Debug.LogError($"{c.GetType().Name} missing required {elementType?.Name + (isArray ? "[]" : "")} ref '{field.Name}'", c.gameObject);
+                }
                 return;
             }
             
@@ -314,7 +330,10 @@ namespace KBCore.Refs
                 {
                     object o = a.GetValue(i);
                     if (o is ISerializableRef serObj) o = serObj.SerializedObject;
-                    ValidateRefLocation(attr.Loc, c, field, o);
+                    if (o != null)
+                        ValidateRefLocation(attr.Loc, c, field, o);
+                    else
+                        Debug.LogError($"{c.GetType().Name} missing required element ref in array '{field.Name}'", c.gameObject);
                 }
             }
             else
@@ -334,7 +353,7 @@ namespace KBCore.Refs
                     ValidateRefLocation(loc, c, field, valueSO);
                     break;
                 default:
-                    throw new Exception($"{c.GetType().Name} has unexpected reference type {refObj.GetType().Name}");
+                    throw new Exception($"{c.GetType().Name} has unexpected reference type {refObj?.GetType().Name}");
             }
         }
 
@@ -380,6 +399,7 @@ namespace KBCore.Refs
                 case RefLoc.Self:
                 case RefLoc.Parent:
                 case RefLoc.Child:
+                case RefLoc.Scene:
                     Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be Anywhere", c.gameObject);
                     break;
 
