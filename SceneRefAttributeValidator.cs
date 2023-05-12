@@ -14,7 +14,7 @@ namespace KBCore.Refs
     public static class SceneRefAttributeValidator
     {
 
-        private static readonly List<ReflectionUtil.AttributedField<SceneRefAttribute>> ATTRIBUTED_FIELDS_CACHE = new List<ReflectionUtil.AttributedField<SceneRefAttribute>>();
+        private static readonly List<ReflectionUtil.AttributedField<SceneRefAttribute>> ATTRIBUTED_FIELDS_CACHE = new();
 
 #if UNITY_EDITOR
         /// <summary>
@@ -192,7 +192,7 @@ namespace KBCore.Refs
 
             if (attr.HasFlags(Flag.Editable))
             {
-                var isFilledArray = isArray && (existingValue as Object[])?.Length > 0;
+                bool isFilledArray = isArray && (existingValue as Object[])?.Length > 0;
                 if (isFilledArray || existingValue as Object != null)
                 {
                     // If the field is editable and the value has already been set, keep it.
@@ -284,7 +284,7 @@ namespace KBCore.Refs
             }
             else
             {
-                var valuesAreEqual = existingValue != null && (isArray ? Enumerable.SequenceEqual((object[])value, (object[])existingValue) : value.Equals(existingValue));
+                bool valuesAreEqual = existingValue != null && (isArray ? Enumerable.SequenceEqual((object[])value, (object[])existingValue) : value.Equals(existingValue));
                 if (valuesAreEqual)
                     return existingValue;
                 field.SetValue(c, value);
@@ -295,13 +295,12 @@ namespace KBCore.Refs
 #endif
             return value;
         }
-
+        
         private static object GetComponentIfWrongType(object existingValue, Type elementType)
         {
             if (existingValue is Component existingComponent && existingComponent && !elementType.IsInstanceOfType(existingValue))
                 return existingComponent.GetComponent(elementType);
-            else
-                return existingValue;
+            return existingValue;
         }
 
         private static void ValidateRef(SceneRefAttribute attr, Component c, FieldInfo field, object value)
@@ -389,6 +388,7 @@ namespace KBCore.Refs
             }
         }
 
+        // ReSharper disable once UnusedParameter.Local
         private static void ValidateRefLocation(RefLoc loc, Component c, FieldInfo field, ScriptableObject refObj)
         {
             switch (loc)
