@@ -7,7 +7,7 @@ namespace KBCore.Refs
 #if UNITY_EDITOR
         protected virtual void OnValidate()
         {
-            if (!Application.isPlaying)
+            if (!Application.isPlaying || Time.frameCount == 0)
                 this.ValidateRefs();
         }
 #else
