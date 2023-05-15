@@ -349,7 +349,10 @@ namespace KBCore.Refs
                     ValidateRefLocation(loc, c, field, valueC);
                     break;
                 case ScriptableObject valueSO:
-                    ValidateRefLocation(loc, c, field, valueSO);
+                    ValidateRefLocationAnywhere(loc, c, field, valueSO);
+                    break;
+                case GameObject valueGO:
+                    ValidateRefLocationAnywhere(loc, c, field, valueGO);
                     break;
                 default:
                     throw new Exception($"{c.GetType().Name} has unexpected reference type {refObj?.GetType().Name}");
@@ -389,7 +392,7 @@ namespace KBCore.Refs
         }
 
         // ReSharper disable once UnusedParameter.Local
-        private static void ValidateRefLocation(RefLoc loc, Component c, FieldInfo field, ScriptableObject refObj)
+        private static void ValidateRefLocationAnywhere(RefLoc loc, Component c, FieldInfo field, Object refObj)
         {
             switch (loc)
             {
