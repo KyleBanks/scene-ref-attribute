@@ -8,10 +8,16 @@ namespace KBCore.Refs
     /// </summary>
     /// <typeparam name="T">Component type to find and serialize.</typeparam>
     [Serializable]
-    public class InterfaceRef<T> : ISerializableRef<T> 
+    public class InterfaceRef<T> : ISerializableRef<T>
         where T : class
     {
-        
+        [SerializeField]
+        private Component _implementer;
+
+        private bool _hasCast;
+
+        private T _value;
+
         /// <summary>
         /// The serialized interface value.
         /// </summary>
@@ -28,18 +34,16 @@ namespace KBCore.Refs
             }
         }
 
-        object ISerializableRef.SerializedObject 
+        object ISerializableRef.SerializedObject
             => this._implementer;
 
-        [SerializeField] 
-        private Component _implementer;
-        
-        private bool _hasCast;
-        private T _value;
+        public Type RefType => typeof(T);
+
+        public bool HasSerializedObject => this._implementer != null;
 
         bool ISerializableRef.OnSerialize(object value)
         {
-            Component c = (Component) value;
+            Component c = (Component)value;
             if (c == this._implementer)
                 return false;
 
