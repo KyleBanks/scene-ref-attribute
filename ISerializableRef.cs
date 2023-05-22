@@ -6,8 +6,8 @@ namespace KBCore.Refs
     {
         Type RefType { get; }
         object SerializedObject { get; }
-        bool HasSerializedObject => this.SerializedObject != null;
-        
+        bool HasSerializedObject { get; }
+
         /// <summary>
         /// Callback for serialization.
         /// </summary>
@@ -19,8 +19,6 @@ namespace KBCore.Refs
     internal interface ISerializableRef<T> : ISerializableRef
         where T : class
     {
-        Type ISerializableRef.RefType => typeof(T);
-        
         T Value { get; }
     }
 }
