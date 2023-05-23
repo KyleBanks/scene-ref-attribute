@@ -233,7 +233,6 @@ namespace KBCore.Refs
                     break;
 
                 case RefLoc.Parent:
-
 #if UNITY_2020
                     value = isArray
                         ? (object)c.GetComponentsInParent(elementType, includeInactive)
@@ -254,8 +253,8 @@ namespace KBCore.Refs
                     break;
 
                 case RefLoc.Scene:
-#if UNITY_2020_3_26
-                    value = Object.FindObjectsOfType(elementType, true);
+#if UNITY_2020
+                    value = Object.FindObjectsOfType(elementType, includeInactive);
 #endif
 #if UNITY_2021_OR_NEWER
                     FindObjectsInactive includeInactiveObjects = includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude;
