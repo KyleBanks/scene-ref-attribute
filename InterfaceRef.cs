@@ -11,12 +11,6 @@ namespace KBCore.Refs
     public class InterfaceRef<T> : ISerializableRef<T>
         where T : class
     {
-        [SerializeField]
-        private Component _implementer;
-
-        private bool _hasCast;
-
-        private T _value;
 
         /// <summary>
         /// The serialized interface value.
@@ -40,6 +34,10 @@ namespace KBCore.Refs
         public Type RefType => typeof(T);
 
         public bool HasSerializedObject => this._implementer != null;
+        
+        [SerializeField] private Component _implementer;
+        private bool _hasCast;
+        private T _value;
 
         bool ISerializableRef.OnSerialize(object value)
         {
