@@ -6,17 +6,19 @@ using UnityEngine;
 using Object = UnityEngine.Object;
 
 #if UNITY_EDITOR
+
 using UnityEditor;
+
 #endif
 
 namespace KBCore.Refs
 {
     public static class SceneRefAttributeValidator
     {
-
-        private static readonly List<ReflectionUtil.AttributedField<SceneRefAttribute>> ATTRIBUTED_FIELDS_CACHE = new();
+        private static readonly List<ReflectionUtil.AttributedField<SceneRefAttribute>> ATTRIBUTED_FIELDS_CACHE = new List<ReflectionUtil.AttributedField<SceneRefAttribute>>();
 
 #if UNITY_EDITOR
+
         /// <summary>
         /// Validate all references for every script and every game object in the scene.
         /// </summary>
@@ -55,22 +57,23 @@ namespace KBCore.Refs
                 }
             }
         }
-        
+
         /// <summary>
         /// Validate a single components references, attempting to assign missing references
         /// and logging errors as necessary.
         /// </summary>
         [MenuItem("CONTEXT/Component/Validate Refs")]
-        private static void ValidateRefs(MenuCommand menuCommand) 
+        private static void ValidateRefs(MenuCommand menuCommand)
             => Validate(menuCommand.context as Component);
-        
+
         /// <summary>
-        /// Clean and validate a single components references. Useful in instances where (for example) Unity has 
-        /// incorrectly serialized a scene reference within a prefab. 
+        /// Clean and validate a single components references. Useful in instances where (for example) Unity has
+        /// incorrectly serialized a scene reference within a prefab.
         /// </summary>
         [MenuItem("CONTEXT/Component/Clean and Validate Refs")]
-        private static void CleanValidateRefs(MenuCommand menuCommand) 
+        private static void CleanValidateRefs(MenuCommand menuCommand)
             => CleanValidate(menuCommand.context as Component);
+
 #endif
 
         /// <summary>
@@ -79,7 +82,7 @@ namespace KBCore.Refs
         /// </summary>
         public static void ValidateRefs(this Component c, bool updateAtRuntime = false)
             => Validate(c, updateAtRuntime);
-        
+
         /// <summary>
         /// Validate a single components references, attempting to assign missing references
         /// and logging errors as necessary.
@@ -100,10 +103,10 @@ namespace KBCore.Refs
                 ATTRIBUTED_FIELDS_CACHE.Clear();
             }
         }
-        
+
         /// <summary>
-        /// Clean and validate a single components references. Useful in instances where (for example) Unity has 
-        /// incorrectly serialized a scene reference within a prefab. 
+        /// Clean and validate a single components references. Useful in instances where (for example) Unity has
+        /// incorrectly serialized a scene reference within a prefab.
         /// </summary>
         public static void CleanValidate(Component c, bool updateAtRuntime = false)
         {
@@ -124,7 +127,7 @@ namespace KBCore.Refs
         }
 
         private static void Validate(
-            Component c, 
+            Component c,
             List<ReflectionUtil.AttributedField<SceneRefAttribute>> requiredFields,
             bool updateAtRuntime
         )
@@ -141,23 +144,23 @@ namespace KBCore.Refs
                 ReflectionUtil.AttributedField<SceneRefAttribute> attributedField = requiredFields[i];
                 SceneRefAttribute attribute = attributedField.Attribute;
                 FieldInfo field = attributedField.FieldInfo;
-                
+
                 if (field.FieldType.IsInterface)
                     throw new Exception($"{c.GetType().Name} cannot serialize interface {field.Name} directly, use InterfaceRef instead");
-                
+
                 object fieldValue = field.GetValue(c);
                 if (updateAtRuntime || !Application.isPlaying)
                     fieldValue = UpdateRef(attribute, c, field, fieldValue);
 
                 if (isUninstantiatedPrefab)
                     continue;
-                
+
                 ValidateRef(attribute, c, field, fieldValue);
             }
         }
-        
+
         private static void Clean(
-            Component c, 
+            Component c,
             List<ReflectionUtil.AttributedField<SceneRefAttribute>> requiredFields
         )
         {
@@ -165,9 +168,9 @@ namespace KBCore.Refs
             {
                 ReflectionUtil.AttributedField<SceneRefAttribute> attributedField = requiredFields[i];
                 SceneRefAttribute attribute = attributedField.Attribute;
-                if (attribute.Loc == RefLoc.Anywhere) 
+                if (attribute.Loc == RefLoc.Anywhere)
                     continue;
-                
+
                 FieldInfo field = attributedField.FieldInfo;
                 field.SetValue(c, null);
 #if UNITY_EDITOR
@@ -185,7 +188,7 @@ namespace KBCore.Refs
             ISerializableRef iSerializable = null;
             if (typeof(ISerializableRef).IsAssignableFrom(fieldType))
             {
-                iSerializable = (ISerializableRef) (existingValue ?? Activator.CreateInstance(fieldType));
+                iSerializable = (ISerializableRef)(existingValue ?? Activator.CreateInstance(fieldType));
                 fieldType = iSerializable.RefType;
                 existingValue = iSerializable.SerializedObject;
             }
@@ -199,7 +202,7 @@ namespace KBCore.Refs
                     return existingValue;
                 }
             }
-            
+
             Type elementType = fieldType;
             if (isArray)
             {
@@ -212,7 +215,7 @@ namespace KBCore.Refs
                         elementType = interfaceType.GetGenericArguments()[0];
                 }
             }
-            
+
             object value = null;
             switch (attr.Loc)
             {
@@ -222,48 +225,66 @@ namespace KBCore.Refs
                             ? (existingValue as ISerializableRef[])?.Select(existingRef => GetComponentIfWrongType(existingRef.SerializedObject, elementType)).ToArray()
                             : GetComponentIfWrongType(existingValue, elementType);
                     break;
+
                 case RefLoc.Self:
                     value = isArray
-                        ? c.GetComponents(elementType)
-                        : c.GetComponent(elementType);
+                        ? (object)c.GetComponents(elementType)
+                        : (object)c.GetComponent(elementType);
                     break;
+
                 case RefLoc.Parent:
+#if UNITY_2020
                     value = isArray
-                        ? c.GetComponentsInParent(elementType, includeInactive)
-                        : c.GetComponentInParent(elementType, includeInactive);
+                        ? (object)c.GetComponentsInParent(elementType, includeInactive)
+                        : (object)c.GetComponentInParent(elementType);
+#endif
+#if UNITY_2021_OR_NEWER
+                    value = isArray
+                        ? (object)c.GetComponentsInParent(elementType, includeInactive)
+                        : (object)c.GetComponentInParent(elementType, includeInactive);
+#endif
+
                     break;
+
                 case RefLoc.Child:
                     value = isArray
-                        ? c.GetComponentsInChildren(elementType, includeInactive)
-                        : c.GetComponentInChildren(elementType, includeInactive);
+                        ? (object)c.GetComponentsInChildren(elementType, includeInactive)
+                        : (object)c.GetComponentInChildren(elementType, includeInactive);
                     break;
+
                 case RefLoc.Scene:
+#if UNITY_2020
+                    value = Object.FindObjectsOfType(elementType, includeInactive);
+#endif
+#if UNITY_2021_OR_NEWER
                     FindObjectsInactive includeInactiveObjects = includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude;
                     value = isArray
                         ? Object.FindObjectsByType(elementType, includeInactiveObjects, FindObjectsSortMode.None)
                         : Object.FindAnyObjectByType(elementType, includeInactiveObjects);
+#endif
                     break;
+
                 default:
                     throw new Exception($"Unhandled Loc={attr.Loc}");
             }
 
-            if (value == null) 
+            if (value == null)
                 return existingValue;
-            
+
             if (isArray)
             {
                 Type realElementType = fieldType.GetElementType();
-                
-                Array componentArray = (Array) value;
+
+                Array componentArray = (Array)value;
                 Array typedArray = Array.CreateInstance(
                     realElementType ?? throw new InvalidOperationException(),
                     componentArray.Length
                 );
-                
+
                 if (elementType == realElementType)
                 {
                     Array.Copy(componentArray, typedArray, typedArray.Length);
-                    value = typedArray;    
+                    value = typedArray;
                 }
                 else if (typeof(ISerializableRef).IsAssignableFrom(realElementType))
                 {
@@ -276,7 +297,7 @@ namespace KBCore.Refs
                     value = typedArray;
                 }
             }
-            
+
             if (iSerializable != null)
             {
                 if (!iSerializable.OnSerialize(value))
@@ -289,13 +310,13 @@ namespace KBCore.Refs
                     return existingValue;
                 field.SetValue(c, value);
             }
-            
+
 #if UNITY_EDITOR
             EditorUtility.SetDirty(c);
 #endif
             return value;
         }
-        
+
         private static object GetComponentIfWrongType(object existingValue, Type elementType)
         {
             if (existingValue is Component existingComponent && existingComponent && !elementType.IsInstanceOfType(existingValue))
@@ -310,7 +331,7 @@ namespace KBCore.Refs
 
             if (value is ISerializableRef ser)
                 value = ser.SerializedObject;
-            
+
             if (IsEmptyOrNull(value, isArray))
             {
                 if (!attr.HasFlags(Flag.Optional))
@@ -321,10 +342,10 @@ namespace KBCore.Refs
                 }
                 return;
             }
-            
+
             if (isArray)
             {
-                Array a = (Array) value;
+                Array a = (Array)value;
                 for (int i = 0; i < a.Length; i++)
                 {
                     object o = a.GetValue(i);
@@ -348,12 +369,15 @@ namespace KBCore.Refs
                 case Component valueC:
                     ValidateRefLocation(loc, c, field, valueC);
                     break;
+
                 case ScriptableObject valueSO:
                     ValidateRefLocationAnywhere(loc, c, field, valueSO);
                     break;
+
                 case GameObject valueGO:
                     ValidateRefLocationAnywhere(loc, c, field, valueGO);
                     break;
+
                 default:
                     throw new Exception($"{c.GetType().Name} has unexpected reference type {refObj?.GetType().Name}");
             }
@@ -365,22 +389,22 @@ namespace KBCore.Refs
             {
                 case RefLoc.Anywhere:
                     break;
-                
+
                 case RefLoc.Self:
                     if (refObj.gameObject != c.gameObject)
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be on Self", c.gameObject);
                     break;
-                
+
                 case RefLoc.Parent:
                     if (!c.transform.IsChildOf(refObj.transform))
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be a Parent", c.gameObject);
                     break;
-                
+
                 case RefLoc.Child:
                     if (!refObj.transform.IsChildOf(c.transform))
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be a Child", c.gameObject);
                     break;
-                    
+
                 case RefLoc.Scene:
                     if (c == null)
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be in the scene", c.gameObject);
@@ -415,9 +439,8 @@ namespace KBCore.Refs
         {
             if (obj is ISerializableRef ser)
                 return !ser.HasSerializedObject;
-            
+
             return obj == null || obj.Equals(null) || (isArray && ((Array)obj).Length == 0);
         }
-        
     }
 }
