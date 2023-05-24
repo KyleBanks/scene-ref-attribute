@@ -237,8 +237,7 @@ namespace KBCore.Refs
                     value = isArray
                         ? (object)c.GetComponentsInParent(elementType, includeInactive)
                         : (object)c.GetComponentInParent(elementType);
-#endif
-#if UNITY_2021_OR_NEWER
+#else
                     value = isArray
                         ? (object)c.GetComponentsInParent(elementType, includeInactive)
                         : (object)c.GetComponentInParent(elementType, includeInactive);
