@@ -253,8 +253,11 @@ namespace KBCore.Refs
 
                 case RefLoc.Scene:
 #if UNITY_2020
-                    value = Object.FindObjectsOfType(elementType, includeInactive);
-#else
+                    value = isArray
+                        ? (object)Object.FindObjectsOfType(elementType, includeInactive)
+                        : (object)Object.FindObjectOfType(elementType, includeInactive);
+#endif
+#if UNITY_2021_OR_NEWER
                     FindObjectsInactive includeInactiveObjects = includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude;
                     value = isArray
                         ? Object.FindObjectsByType(elementType, includeInactiveObjects, FindObjectsSortMode.None)
