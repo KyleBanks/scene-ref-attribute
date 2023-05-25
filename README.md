@@ -1,5 +1,7 @@
 # Scene Reference Attribute
 
+[![openupm](https://img.shields.io/npm/v/com.kylewbanks.scenerefattribute?label=openupm&registry_uri=https://package.openupm.com)](https://openupm.com/packages/com.kylewbanks.scenerefattribute/)
+
 Unity C# attribute for serializing **component and interface references** within the scene or prefab during `OnValidate`, rather than using `GetComponent*` functions in `Awake/Start/OnEnable` at runtime. 
 
 This project aims to provide:
@@ -7,6 +9,20 @@ This project aims to provide:
 - a simple set of tags for declaring dependency locations
 - resolution, validation and serialisation of references **(including interface types!)**
 - determinate results so you never have to worry about Unity losing your references, they'll always be safely regenerated
+
+### Installation
+
+**Basic**
+
+You can simply clone (or download this repo as a zip and unzip) into your `Assets/` directory. 
+
+**UPM**
+
+[Install with UPM](https://openupm.com/packages/com.kylewbanks.scenerefattribute) on the command-line like so:
+
+```
+openupm add com.kylewbanks.scenerefattribute
+```
 
 ### Why?
 
