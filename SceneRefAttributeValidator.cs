@@ -256,8 +256,7 @@ namespace KBCore.Refs
                     value = isArray
                         ? (object)Object.FindObjectsOfType(elementType, includeInactive)
                         : (object)Object.FindObjectOfType(elementType, includeInactive);
-#endif
-#if UNITY_2021_OR_NEWER
+#else
                     FindObjectsInactive includeInactiveObjects = includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude;
                     value = isArray
                         ? Object.FindObjectsByType(elementType, includeInactiveObjects, FindObjectsSortMode.None)
