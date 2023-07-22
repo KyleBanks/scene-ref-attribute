@@ -183,6 +183,7 @@ namespace KBCore.Refs
         {
             Type fieldType = field.FieldType;
             bool isArray = fieldType.IsArray;
+            bool excludeSelf = attr.HasFlags(Flag.ExcludeSelf);
             bool includeInactive = attr.HasFlags(Flag.IncludeInactive);
 
             ISerializableRef iSerializable = null;
@@ -228,27 +229,24 @@ namespace KBCore.Refs
 
                 case RefLoc.Self:
                     value = isArray
-                        ? (object)c.GetComponents(elementType)
-                        : (object)c.GetComponent(elementType);
+                        ? c.GetComponents(elementType)
+                        : c.GetComponent(elementType);
                     break;
 
                 case RefLoc.Parent:
+                    bool includeInactiveWhenSingle = includeInactive;
 #if UNITY_2020
-                    value = isArray
-                        ? (object)c.GetComponentsInParent(elementType, includeInactive)
-                        : (object)c.GetComponentInParent(elementType);
-#else
-                    value = isArray
-                        ? (object)c.GetComponentsInParent(elementType, includeInactive)
-                        : (object)c.GetComponentInParent(elementType, includeInactive);
+                    includeInactiveWhenSingle = false;
 #endif
-
+                    value = isArray
+                        ? GetComponentsInParent(c, elementType, includeInactive, excludeSelf)
+                        : GetComponentInParent(c, elementType, includeInactiveWhenSingle, excludeSelf);
                     break;
 
                 case RefLoc.Child:
                     value = isArray
-                        ? (object)c.GetComponentsInChildren(elementType, includeInactive)
-                        : (object)c.GetComponentInChildren(elementType, includeInactive);
+                        ? GetComponentsInChildren(c, elementType, includeInactive, excludeSelf)
+                        : GetComponentInChildren(c, elementType, includeInactive, excludeSelf);
                     break;
 
                 case RefLoc.Scene:
@@ -334,13 +332,44 @@ namespace KBCore.Refs
 
             if (IsEmptyOrNull(value, isArray))
             {
-                if (!attr.HasFlags(Flag.Optional))
-                {
-                    Type elementType = isArray ? fieldType.GetElementType() : fieldType;
-                    elementType = typeof(ISerializableRef).IsAssignableFrom(elementType) ? elementType?.GetGenericArguments()[0] : elementType;
-                    Debug.LogError($"{c.GetType().Name} missing required {elementType?.Name + (isArray ? "[]" : "")} ref '{field.Name}'", c.gameObject);
-                }
+                if (attr.HasFlags(Flag.Optional)) return;
+                
+                var elementType = isArray ? fieldType.GetElementType() : fieldType;
+                elementType = typeof(ISerializableRef).IsAssignableFrom(elementType) ? elementType?.GetGenericArguments()[0] : elementType;
+                Debug.LogError($"{c.GetType().Name} missing required {elementType?.Name}{(isArray ? "[]" : "")} ref '{field.Name}'", c.gameObject);
                 return;
+            }
+
+            if (attr.HasFlags(Flag.Optional))
+            {
+                if (isArray)
+                {
+                    Array a = (Array)value;
+                    for (int i = 0; i < a.Length; ++i)
+                    {
+                        object o = UnpackValue(a.GetValue(i));
+                        if (o == null)
+                            continue;
+
+                        if (o is MonoBehaviour m && m.gameObject == c.gameObject)
+                        {
+                            var elementType = fieldType.GetElementType();
+                            Debug.LogError($"{c.GetType().Name} {elementType?.Name}[] ref '{field.Name}' cannot contain component from the same GameObject (i={i})", c.gameObject);
+                        }
+                    }
+                }
+                else
+                {
+                    object o = UnpackValue(value);
+                    //value is on the same object as current component
+                    if (o is MonoBehaviour m && m.gameObject == c.gameObject)
+                    {
+                        var elementType = typeof(ISerializableRef).IsAssignableFrom(fieldType)
+                            ? fieldType.GetGenericArguments()[0]
+                            : fieldType;
+                        Debug.LogError($"{c.GetType().Name} {elementType.Name} ref '{field.Name}' cannot be on the same GameObject", c.gameObject);
+                    }
+                }
             }
 
             if (isArray)
@@ -348,8 +377,7 @@ namespace KBCore.Refs
                 Array a = (Array)value;
                 for (int i = 0; i < a.Length; i++)
                 {
-                    object o = a.GetValue(i);
-                    if (o is ISerializableRef serObj) o = serObj.SerializedObject;
+                    object o = UnpackValue(a.GetValue(i));
                     if (o != null)
                         ValidateRefLocation(attr.Loc, c, field, o);
                     else
@@ -441,6 +469,78 @@ namespace KBCore.Refs
                 return !ser.HasSerializedObject;
 
             return obj == null || obj.Equals(null) || (isArray && ((Array)obj).Length == 0);
+        }
+
+        private static object UnpackValue(object obj)
+        {
+            if (obj is ISerializableRef ser)
+                return ser.SerializedObject;
+
+            return obj;
+        }
+        
+        private static Component[] GetComponentsInParent(Component c, Type elementType, bool includeInactive, bool excludeSelf)
+        {
+            var element = c;
+            if (excludeSelf)
+                element = c.transform.parent;
+
+            return element == null
+                ? Array.Empty<Component>()
+                : element.GetComponentsInParent(elementType, includeInactive);
+        }
+
+        private static Component GetComponentInParent(Component c, Type elementType, bool includeInactive,
+            bool excludeSelf)
+        {
+            var element = c;
+            if (excludeSelf)
+                element = c.transform.parent;
+
+            return element == null
+                ? null
+                : element.GetComponentInParent(elementType, includeInactive);
+        }
+
+        private static Component[] GetComponentsInChildren(Component c, Type elementType, bool includeInactive,
+            bool excludeSelf)
+        {
+            if (!excludeSelf)
+                return c.GetComponentsInChildren(elementType, includeInactive);
+
+            List<Component> components = new List<Component>();
+
+            var transform = c.transform;
+            int childCount = transform.childCount;
+
+            for (int i = 0; i < childCount; ++i)
+            {
+                var child = transform.GetChild(i);
+                components.AddRange(child.GetComponentsInChildren(elementType, includeInactive));
+            }
+            
+            return components.ToArray();
+        }
+        
+        private static Component GetComponentInChildren(Component c, Type elementType, bool includeInactive,
+            bool excludeSelf)
+        {
+            if (!excludeSelf)
+                return c.GetComponentInChildren(elementType, includeInactive);
+
+            var transform = c.transform;
+            int childCount = transform.childCount;
+
+            for (int i = 0; i < childCount; ++i)
+            {
+                var child = transform.GetChild(i);
+                var component = child.GetComponentInChildren(elementType, includeInactive);
+                
+                if (component != null)
+                    return component;
+            }
+            
+            return null;
         }
     }
 }

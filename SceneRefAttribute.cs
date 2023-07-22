@@ -58,6 +58,10 @@ namespace KBCore.Refs
         /// the field location (self, child, etc) matches as expected.
         /// </summary>
         Editable = 1 << 2,
+        /// <summary>
+        /// Excludes components on current GameObject from search(only applies to Child and Parent).
+        /// </summary>
+        ExcludeSelf = 1 << 3,
     }
     
     /// <summary>
