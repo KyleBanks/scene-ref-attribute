@@ -6,9 +6,7 @@ using UnityEngine;
 using Object = UnityEngine.Object;
 
 #if UNITY_EDITOR
-
 using UnityEditor;
-
 #endif
 
 namespace KBCore.Refs
@@ -179,7 +177,12 @@ namespace KBCore.Refs
             }
         }
 
-        private static object UpdateRef(SceneRefAttribute attr, Component c, FieldInfo field, object existingValue)
+        private static object UpdateRef(
+            SceneRefAttribute attr, 
+            Component c, 
+            FieldInfo field, 
+            object existingValue
+        )
         {
             Type fieldType = field.FieldType;
             bool isArray = fieldType.IsArray;
@@ -271,11 +274,25 @@ namespace KBCore.Refs
             if (value == null)
                 return existingValue;
 
+            SceneRefFilter filter = attr.Filter;
+            
             if (isArray)
             {
                 Type realElementType = fieldType.GetElementType();
 
                 Array componentArray = (Array)value;
+                if (filter != null)
+                {
+                    // TODO: probably a better way to do this without allocating a list
+                    List<object> list = new List<object>();
+                    foreach (object o in componentArray)
+                    {
+                        if (filter.IncludeSceneRef(o))
+                            list.Add(o);
+                    }
+                    componentArray = list.ToArray();
+                }
+                
                 Array typedArray = Array.CreateInstance(
                     realElementType ?? throw new InvalidOperationException(),
                     componentArray.Length
@@ -296,6 +313,15 @@ namespace KBCore.Refs
                     }
                     value = typedArray;
                 }
+            }
+            else if (filter != null && !filter.IncludeSceneRef(value))
+            {
+                iSerializable?.Clear();
+#if UNITY_EDITOR
+                if (existingValue != null)
+                    EditorUtility.SetDirty(c);
+#endif
+                return null;
             }
 
             if (iSerializable != null)

@@ -129,9 +129,62 @@ private ParticleSystem[] _particles;
 - `IncludeInactive` only affects `Parent`, `Child` and `Scene`, and determines whether inactive components are included in the results. By default, only active components will be found, same as `GetComponent(s)InChildren`, `GetComponent(s)InParent` and `FindObjectsOfType`. 
 - `Editable` only affects `Parent`, `Child` and `Scene`, and allows you to edit the resulting reference. This is useful, for example, if you have two children who would satisfy a reference but you want to manually select which reference is used. 
 
+### Filters
+
+This project also provides support for filtering references based on custom logic. 
+
+Let's use an example to demonstrate: imagine you have a `StealthAnimations` class which applies stealth-related game logic to all child `Animators`.
+
+```cs
+public class StealthAnimations : MonoBehaviour
+{
+    private static readonly int ANIMATOR_PARAM_STEALTH_STATE = Animator.StringToHash("StealthState");
+
+    [SerializeField, Child] private Animator[] _animators;
+    
+    private void Update()
+    {
+        int state = GetStealthState();
+        for (int i = 0; i < this._animators.Length; i++)
+            this._animators[i].SetInteger(ANIMATOR_PARAM_STEALTH_STATE, state);
+    }
+}
+```
+
+This will reference all child animators and apply the `StealthState` integer each frame. The issue here is that not all child animators have a `StealthState` parameter. One way to solve this would be to check each animator to see if it has the parameter, but this would be inefficient, especially if we have many child animators but only a few have the parameter. 
+
+Instead, let's pre-filter the animators by implementing a `SceneRefFilter` and setting the `filter` parameter on the attribute: 
+
+```cs
+public class StealthAnimations : MonoBehaviour
+{
+    
+    private class AnimatorRefFilter : SceneRefFilter<Animator>
+    {
+        public override bool IncludeSceneRef(Animator animator)
+            => AnimatorUtils.HasParameter(animator, ANIMATOR_PARAM_STEALTH_STATE);
+    }
+    
+    [SerializeField, Child(filter: typeof(AnimatorRefFilter))] 
+    private Animator[] _animators;
+}
+```
+
+Our custom `AnimatorRefFilter` will be invoked for each `Animator` matching our ref attribute (`Child`) and flags, but only the ones where `true` is returned will be included.   
+
+You can apply this pattern to any type and any condition, allowing you to pre-filter references to ensure they are what you'll actually need at runtime. 
+
+Additional examples:
+- Filter to include/exclude trigger colliders
+- Filter to include/exclude if another component is present
+- Filter to include/exclude static gameObjects
+- etc.
+
+**Note:** this filter is only invoked at edit time, so you can't rely on any runtime information for filtering. In that case you will still need to filter your references in Awake or similar.  
+
 ### Features 
 
-- Supports all `MonoBehaviour` and `Component` types (basically anything you can use with `GetComponent`), including interfaces
+- Supports all `MonoBehaviour` and `Component` types (basically anything you can use with `GetComponent`), plus interfaces!
 - Determinate results, so there's no worry of Unity forgetting all your serialised references (which has happened to me a few times on upgrading editor versions). All references will be reassigned automatically.  
 - Fast, this tool won't slow down your editor or generate excessive garbage. 
 - Fully serialised at edit time, so all references are already available at runtime
