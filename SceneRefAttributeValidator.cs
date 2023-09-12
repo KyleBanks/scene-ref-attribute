@@ -46,10 +46,10 @@ namespace KBCore.Refs
                     if (ATTRIBUTED_FIELDS_CACHE.Count == 0)
                         continue;
 
-#if UNITY_2018
-                    Object[] objects = Object.FindObjectsOfType(scriptType);
-#else
+#if UNITY_2020_4_OR_NEWER
                     Object[] objects = Object.FindObjectsOfType(scriptType, true);
+#else
+                    Object[] objects = Object.FindObjectsOfType(scriptType);
 #endif
 
                     if (objects.Length == 0)
@@ -252,14 +252,14 @@ namespace KBCore.Refs
                     break;
 
                 case RefLoc.Parent:
-#if UNITY_2018
-                    value = isArray
-                        ? (object)c.GetComponentsInParent(elementType, includeInactive)
-                        : (object)c.GetComponentInParent(elementType);
-#else
+#if UNITY_2020_OR_NEWER
                     value = isArray
                         ? c.GetComponentsInParent(elementType, includeInactive)
                         : (object)c.GetComponentInParent(elementType, includeInactive);
+#else
+                    value = isArray
+                        ? (object)c.GetComponentsInParent(elementType, includeInactive)
+                        : (object)c.GetComponentInParent(elementType);
 #endif
 
                     break;
@@ -271,19 +271,14 @@ namespace KBCore.Refs
                     break;
 
                 case RefLoc.Scene:
-#if UNITY_2020
+#if UNITY_2020_OR_NEWER
                     value = isArray
                         ? (object)Object.FindObjectsOfType(elementType, includeInactive)
                         : (object)Object.FindObjectOfType(elementType, includeInactive);
-#elif UNITY_2018
-                    value = isArray
-                        ? (object)Object.FindObjectsOfType(elementType)
-                        : (object)Object.FindObjectOfType(elementType);
 #else
-                    FindObjectsInactive includeInactiveObjects = includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude;
                     value = isArray
-                        ? Object.FindObjectsByType(elementType, includeInactiveObjects, FindObjectsSortMode.None)
-                        : Object.FindAnyObjectByType(elementType, includeInactiveObjects);
+                         ? (object)Object.FindObjectsOfType(elementType)
+                         : (object)Object.FindObjectOfType(elementType);
 #endif
                     break;
 
