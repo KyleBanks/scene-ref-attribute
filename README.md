@@ -128,6 +128,7 @@ private ParticleSystem[] _particles;
 - `Optional` won't fail validation for empty (or null in the case of non-array types) results.
 - `IncludeInactive` only affects `Parent`, `Child` and `Scene`, and determines whether inactive components are included in the results. By default, only active components will be found, same as `GetComponent(s)InChildren`, `GetComponent(s)InParent` and `FindObjectsOfType`. 
 - `Editable` only affects `Parent`, `Child` and `Scene`, and allows you to edit the resulting reference. This is useful, for example, if you have two children who would satisfy a reference but you want to manually select which reference is used. 
+- `Filter` allows you to implement custom logic to filter references. See **Filters** below.
 
 ### Filters
 
