@@ -46,7 +46,7 @@ namespace KBCore.Refs
                     if (ATTRIBUTED_FIELDS_CACHE.Count == 0)
                         continue;
 
-#if UNITY_2020_4_OR_NEWER
+#if UNITY_2020_OR_NEWER
                     Object[] objects = Object.FindObjectsOfType(scriptType, true);
 #else
                     Object[] objects = Object.FindObjectsOfType(scriptType);
