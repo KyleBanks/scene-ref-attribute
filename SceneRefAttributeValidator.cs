@@ -363,7 +363,8 @@ namespace KBCore.Refs
 
             if (iSerializable == null)
             {
-                bool valuesAreEqual = existingValue != null && (isArray ? ((IEnumerable)value).HaveSameCount((IEnumerable)existingValue) : value.Equals(existingValue));
+                IEnumerable enumerable = (IEnumerable)value;
+                bool valuesAreEqual = existingValue != null && (isArray ? enumerable.HaveSameCount((IEnumerable)existingValue) : value.Equals(existingValue));
                 if (valuesAreEqual)
                 {
                     return existingValue;
@@ -375,17 +376,15 @@ namespace KBCore.Refs
                 }
                 else if (typeof(IEnumerable).IsAssignableFrom(fieldType))
                 {
-                    IEnumerable value1 = (IEnumerable)value;
-
                     Type listType = typeof(List<>);
                     Type[] typeArgs = { fieldType.GenericTypeArguments[0] };
                     Type constructedType = listType.MakeGenericType(typeArgs);
 
                     object newList = Activator.CreateInstance(constructedType);
 
-                    MethodInfo addMethod = newList.GetType().GetMethod("Add");
+                    MethodInfo addMethod = newList.GetType().GetMethod(nameof(List<object>.Add));
 
-                    foreach (object s in value1)
+                    foreach (object s in enumerable)
                     {
                         addMethod.Invoke(newList, new object[] { s });
                     }
@@ -575,89 +574,6 @@ namespace KBCore.Refs
             }
 
             return obj == null || obj.Equals(null) || (isArray && !((IEnumerable)obj).Any());
-        }
-    }
-
-    public static class t
-    {
-        public static IEnumerable<object> ConvertArrayToEnumerable(IEnumerable array, Type elementType)
-        {
-            if (array == null)
-            {
-                throw new ArgumentNullException(nameof(array));
-            }
-
-            if (elementType == null)
-            {
-                throw new ArgumentNullException(nameof(elementType));
-            }
-            IList<object> result = new List<object>();
-            foreach (object item in array)
-            {
-                if (item != null && elementType.IsAssignableFrom(item.GetType()))
-                {
-                    result.Add(item);
-                }
-            }
-
-            return result;
-        }
-
-        public static IList CastList(IEnumerable<object> sourceList, Type targetType)
-        {
-            if (sourceList == null)
-            {
-                throw new ArgumentNullException(nameof(sourceList));
-            }
-
-            if (targetType == null)
-            {
-                throw new ArgumentNullException(nameof(targetType));
-            }
-
-            var targetTypeList = typeof(List<>).MakeGenericType(targetType);
-
-            var constructor = targetTypeList.GetConstructor(Type.EmptyTypes);
-
-            if (constructor == null)
-            {
-                throw new InvalidOperationException($"Cannot create List<{targetType.Name}> instance.");
-            }
-
-            var targetList = (IList)constructor.Invoke(null);
-
-            foreach (var item in sourceList)
-            {
-                if (item != null && targetType.IsAssignableFrom(item.GetType()))
-                {
-                    targetList.Add(item);
-                }
-            }
-
-            return targetList;
-        }
-
-        public static bool HaveSameCount(this IEnumerable enumerable1, IEnumerable enumerable2)
-        {
-            int count1 = enumerable1.CountEnumerable();
-            int count2 = enumerable2.CountEnumerable();
-
-            return count1 == count2;
-        }
-
-        public static int CountEnumerable(this IEnumerable enumerable)
-        {
-            int count = 0;
-            foreach (var item in enumerable)
-            {
-                count++;
-            }
-            return count;
-        }
-
-        public static bool Any(this IEnumerable enumerable)
-        {
-            return enumerable.GetEnumerator().MoveNext();
         }
     }
 }
