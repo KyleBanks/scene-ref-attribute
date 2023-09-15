@@ -212,11 +212,11 @@ namespace KBCore.Refs
                 fieldType = iSerializable.RefType;
                 existingValue = iSerializable.SerializedObject;
             }
+            IEnumerable existingValueEnumerable = existingValue as IEnumerable;
 
             if (attr.HasFlags(Flag.Editable))
             {
-                IEnumerable enumerable = existingValue as IEnumerable;
-                var enumerator = enumerable.GetEnumerator();
+                var enumerator = existingValueEnumerable.GetEnumerator();
                 bool isFilledArray = isArray && enumerator.MoveNext();
                 if (isFilledArray || existingValue is Object)
                 {
@@ -363,8 +363,7 @@ namespace KBCore.Refs
 
             if (iSerializable == null)
             {
-                IEnumerable enumerable = (IEnumerable)value;
-                bool valuesAreEqual = existingValue != null && (isArray ? enumerable.HaveSameCount((IEnumerable)existingValue) : value.Equals(existingValue));
+                bool valuesAreEqual = existingValue != null && (isArray ? ((IEnumerable)value).HaveSameCount(existingValueEnumerable) : value.Equals(existingValue));
                 if (valuesAreEqual)
                 {
                     return existingValue;
@@ -384,7 +383,7 @@ namespace KBCore.Refs
 
                     MethodInfo addMethod = newList.GetType().GetMethod(nameof(List<object>.Add));
 
-                    foreach (object s in enumerable)
+                    foreach (object s in (IEnumerable)value)
                     {
                         addMethod.Invoke(newList, new object[] { s });
                     }
