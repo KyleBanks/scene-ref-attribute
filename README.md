@@ -198,12 +198,6 @@ SceneRefAttributeValidator.Validate(script);
 - Regenerate references for any component by right-clicking the component and selecting `Validate Refs`.
 ![image](https://user-images.githubusercontent.com/2164691/215190393-192083fc-4c83-42da-8ca4-a93d2349aaa2.png)
 
-### Limitations
-
-- Supports arrays but not `List`s. Feel free to submit a PR if you'd like to see this:
-    - **Valid**: `[Child] Renderer[] _renderers;`
-    - **Invalid**: `[Child] List<Renderer> _renderers;`
-
 ### License
 
 This project is made available under the [MIT License](./LICENSE), so you're free to use it for any purpose.
