@@ -1,8 +1,5 @@
 ﻿using System.Collections;
 
-#if UNITY_EDITOR
-#endif
-
 namespace KBCore.Refs
 {
     public static class EnumerableExtensions
