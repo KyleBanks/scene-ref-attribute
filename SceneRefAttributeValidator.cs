@@ -213,7 +213,7 @@ namespace KBCore.Refs
         )
         {
             Type fieldType = field.FieldType;
-            bool isArray = typeof(IEnumerable).IsAssignableFrom(fieldType);
+            bool isCollection = IsCollectionType(fieldType, out bool _, out bool isList);
             bool includeInactive = attr.HasFlags(Flag.IncludeInactive);
 
             ISerializableRef iSerializable = null;
@@ -223,12 +223,10 @@ namespace KBCore.Refs
                 fieldType = iSerializable.RefType;
                 existingValue = iSerializable.SerializedObject;
             }
-            IEnumerable existingValueEnumerable = existingValue as IEnumerable;
 
             if (attr.HasFlags(Flag.Editable))
             {
-                var enumerator = existingValueEnumerable.GetEnumerator();
-                bool isFilledArray = isArray && enumerator.MoveNext();
+                bool isFilledArray = isCollection && (existingValue as IEnumerable).CountEnumerable() > 0;
                 if (isFilledArray || existingValue is Object)
                 {
                     // If the field is editable and the value has already been set, keep it.
@@ -237,7 +235,7 @@ namespace KBCore.Refs
             }
 
             Type elementType = fieldType;
-            if (isArray)
+            if (isCollection)
             {
                 elementType = GetElementType(fieldType);
                 if (typeof(ISerializableRef).IsAssignableFrom(elementType))
@@ -260,27 +258,27 @@ namespace KBCore.Refs
             switch (attr.Loc)
             {
                 case RefLoc.Anywhere:
-                    if (isArray ? typeof(ISerializableRef).IsAssignableFrom(fieldType.GetElementType()) : iSerializable != null)
+                    if (isCollection ? typeof(ISerializableRef).IsAssignableFrom(fieldType.GetElementType()) : iSerializable != null)
                     {
-                        value = isArray
+                        value = isCollection
                             ? (existingValue as ISerializableRef[])?.Select(existingRef => GetComponentIfWrongType(existingRef.SerializedObject, elementType)).ToArray()
                             : GetComponentIfWrongType(existingValue, elementType);
                     }
                     break;
 
                 case RefLoc.Self:
-                    value = isArray
+                    value = isCollection
                         ? (object)component.GetComponents(elementType)
                         : (object)component.GetComponent(elementType);
                     break;
 
                 case RefLoc.Parent:
 #if UNITY_2020_OR_NEWER
-                    value = isArray
+                    value = isCollection
                         ? c.GetComponentsInParent(elementType, includeInactive)
                         : (object)c.GetComponentInParent(elementType, includeInactive);
 #else
-                    value = isArray
+                    value = isCollection
                         ? (object)component.GetComponentsInParent(elementType, includeInactive)
                         : (object)component.GetComponentInParent(elementType, includeInactive);
 #endif
@@ -288,19 +286,19 @@ namespace KBCore.Refs
                     break;
 
                 case RefLoc.Child:
-                    value = isArray
+                    value = isCollection
                         ? (object)component.GetComponentsInChildren(elementType, includeInactive)
                         : (object)component.GetComponentInChildren(elementType, includeInactive);
                     break;
 
                 case RefLoc.Scene:
 #if UNITY_2020_OR_NEWER
-                    value = isArray
+                    value = isCollection
                         ? (object)Object.FindObjectsOfType(elementType, includeInactive)
                         : (object)Object.FindObjectOfType(elementType, includeInactive);
 #else
                     FindObjectsInactive includeInactiveObjects = includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude;
-                    value = isArray
+                    value = isCollection
                          ? (object)Object.FindObjectsOfType(elementType)
                          : (object)Object.FindObjectOfType(elementType);
 #endif
@@ -317,7 +315,7 @@ namespace KBCore.Refs
 
             SceneRefFilter filter = attr.Filter;
 
-            if (isArray)
+            if (isCollection)
             {
                 Type realElementType = GetElementType(fieldType);
 
@@ -371,13 +369,14 @@ namespace KBCore.Refs
 
             if (iSerializable == null)
             {
-                bool valueIsEqual = isArray ? Enumerable.SequenceEqual((IEnumerable<object>)value, (IEnumerable<object>)existingValue) : value.Equals(existingValue);
-                if (existingValue != null && valueIsEqual)
+                bool valueIsEqual = existingValue != null && 
+                                    isCollection ? Enumerable.SequenceEqual((IEnumerable<object>)value, (IEnumerable<object>)existingValue) : value.Equals(existingValue);
+                if (valueIsEqual)
                 {
                     return existingValue;
                 }
 
-                if (!fieldType.IsArray && typeof(IEnumerable).IsAssignableFrom(fieldType))
+                if (isList)
                 {
                     Type listType = typeof(List<>);
                     Type[] typeArgs = { fieldType.GenericTypeArguments[0] };
@@ -419,10 +418,7 @@ namespace KBCore.Refs
             {
                 return fieldType.GetElementType();
             }
-            else
-            {
-                return fieldType.GenericTypeArguments[0];
-            }
+            return fieldType.GenericTypeArguments[0];
         }
 
         private static object GetComponentIfWrongType(object existingValue, Type elementType)
@@ -438,28 +434,28 @@ namespace KBCore.Refs
         private static void ValidateRef(SceneRefAttribute attr, Component c, FieldInfo field, object value)
         {
             Type fieldType = field.FieldType;
-            bool isArray = typeof(IEnumerable).IsAssignableFrom(fieldType);
+            bool isCollection = IsCollectionType(fieldType, out bool _, out bool _);
 
             if (value is ISerializableRef ser)
             {
                 value = ser.SerializedObject;
             }
 
-            if (IsEmptyOrNull(value, isArray))
+            if (IsEmptyOrNull(value, isCollection))
             {
                 if (!attr.HasFlags(Flag.Optional))
                 {
-                    Type elementType = isArray ? fieldType.GetElementType() : fieldType;
+                    Type elementType = isCollection ? fieldType.GetElementType() : fieldType;
                     elementType = typeof(ISerializableRef).IsAssignableFrom(elementType) ? elementType?.GetGenericArguments()[0] : elementType;
-                    Debug.LogError($"{c.GetType().Name} missing required {elementType?.Name + (isArray ? "[]" : "")} ref '{field.Name}'", c.gameObject);
+                    Debug.LogError($"{c.GetType().Name} missing required {elementType?.Name + (isCollection ? "[]" : "")} ref '{field.Name}'", c.gameObject);
                 }
                 return;
             }
 
-            if (isArray)
+            if (isCollection)
             {
                 IEnumerable a = (IEnumerable)value;
-                var enumerator = a.GetEnumerator();
+                IEnumerator enumerator = a.GetEnumerator();
                 while (enumerator.MoveNext())
                 {
                     object o = enumerator.Current;
@@ -479,7 +475,7 @@ namespace KBCore.Refs
                 }
             }
             else
-            {
+            { 
                 ValidateRefLocation(attr.Loc, c, field, value);
             }
         }
@@ -514,34 +510,22 @@ namespace KBCore.Refs
 
                 case RefLoc.Self:
                     if (refObj.gameObject != c.gameObject)
-                    {
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be on Self", c.gameObject);
-                    }
-
                     break;
 
                 case RefLoc.Parent:
                     if (!c.transform.IsChildOf(refObj.transform))
-                    {
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be a Parent", c.gameObject);
-                    }
-
                     break;
 
                 case RefLoc.Child:
                     if (!refObj.transform.IsChildOf(c.transform))
-                    {
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be a Child", c.gameObject);
-                    }
-
                     break;
 
                 case RefLoc.Scene:
                     if (c == null)
-                    {
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be in the scene", c.gameObject);
-                    }
-
                     break;
 
                 default:
@@ -549,7 +533,6 @@ namespace KBCore.Refs
             }
         }
 
-        // ReSharper disable once UnusedParameter.Local
         private static void ValidateRefLocationAnywhere(RefLoc loc, Component c, FieldInfo field)
         {
             switch (loc)
@@ -569,14 +552,21 @@ namespace KBCore.Refs
             }
         }
 
-        private static bool IsEmptyOrNull(object obj, bool isArray)
+        private static bool IsEmptyOrNull(object obj, bool isCollection)
         {
             if (obj is ISerializableRef ser)
             {
                 return !ser.HasSerializedObject;
             }
 
-            return obj == null || obj.Equals(null) || (isArray && ((IEnumerable)obj).CountEnumerable() == 0);
+            return obj == null || obj.Equals(null) || (isCollection && ((IEnumerable) obj).CountEnumerable() == 0);
+        }
+
+        private static bool IsCollectionType(Type t, out bool isArray, out bool isList)
+        {
+            isList = t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>);
+            isArray = t.IsArray;
+            return isList || isArray;
         }
     }
 }

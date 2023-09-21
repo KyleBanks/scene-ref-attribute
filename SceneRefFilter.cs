@@ -11,7 +11,7 @@
     {
 
         internal override bool IncludeSceneRef(object obj) 
-            => this.IncludeSceneRef(obj as T);
+            => this.IncludeSceneRef((T) obj);
         
         /// <summary>
         /// Returns true if the given object should be included as a reference.
