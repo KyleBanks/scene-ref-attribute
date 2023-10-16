@@ -297,7 +297,6 @@ namespace KBCore.Refs
                         ? (object)Object.FindObjectsOfType(elementType, includeInactive)
                         : (object)Object.FindObjectOfType(elementType, includeInactive);
 #else
-                    FindObjectsInactive includeInactiveObjects = includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude;
                     value = isCollection
                          ? (object)Object.FindObjectsOfType(elementType)
                          : (object)Object.FindObjectOfType(elementType);
