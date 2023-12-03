@@ -572,14 +572,6 @@ namespace KBCore.Refs
             isArray = t.IsArray;
             return isList || isArray;
         }
-
-        private static object UnpackValue(object obj)
-        {
-            if (obj is ISerializableRef ser)
-                return ser.SerializedObject;
-
-            return obj;
-        }
         
         private static Component[] GetComponentsInParent(Component c, Type elementType, bool includeInactive, bool excludeSelf)
         {
