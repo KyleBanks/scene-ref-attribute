@@ -4,19 +4,18 @@ using System.Reflection;
 
 namespace KBCore.Refs
 {
-    internal class ReflectionUtil
+    internal static class ReflectionUtil
     {
-        
         internal struct AttributedField<T>
             where T : Attribute
         {
             public T Attribute;
             public FieldInfo FieldInfo;
         }
-        
+
         internal static void GetFieldsWithAttributeFromType<T>(
             Type classToInspect,
-            List<AttributedField<T>> output,
+            IList<AttributedField<T>> output,
             BindingFlags reflectionFlags = BindingFlags.Default
         )
             where T : Attribute
@@ -45,7 +44,7 @@ namespace KBCore.Refs
                 }
 
                 classToInspect = classToInspect.BaseType;
-            } 
+            }
             while (classToInspect != null);
         }
     }

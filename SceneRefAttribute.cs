@@ -71,12 +71,29 @@ namespace KBCore.Refs
     public abstract class SceneRefAttribute : PropertyAttribute
     {
         internal RefLoc Loc { get; }
-        internal Flag Flags { get;  }
+        internal Flag Flags { get; }
 
-        internal SceneRefAttribute(RefLoc loc, Flag flags = Flag.None) 
+        internal SceneRefFilter Filter
+        {
+            get
+            {
+                if (this._filterType == null)
+                    return null;
+                return (SceneRefFilter) Activator.CreateInstance(this._filterType);
+            }
+        }
+
+        private readonly Type _filterType;
+
+        internal SceneRefAttribute(
+            RefLoc loc, 
+            Flag flags,
+            Type filter
+        ) 
         {
             this.Loc = loc;
             this.Flags = flags;
+            this._filterType = filter;
         }
 
         internal bool HasFlags(Flag flags)
@@ -90,8 +107,8 @@ namespace KBCore.Refs
     [AttributeUsage(AttributeTargets.Field)]
     public class AnywhereAttribute : SceneRefAttribute
     {
-        public AnywhereAttribute(Flag flags = Flag.None) 
-            : base(RefLoc.Anywhere, flags: flags)
+        public AnywhereAttribute(Flag flags = Flag.None, Type filter = null) 
+            : base(RefLoc.Anywhere, flags, filter)
         {}
     }
     
@@ -102,8 +119,8 @@ namespace KBCore.Refs
     [AttributeUsage(AttributeTargets.Field)]
     public class SelfAttribute : SceneRefAttribute
     {
-        public SelfAttribute(Flag flags = Flag.None) 
-            : base(RefLoc.Self, flags: flags)
+        public SelfAttribute(Flag flags = Flag.None, Type filter = null) 
+            : base(RefLoc.Self, flags, filter)
         {}
     }
     
@@ -114,8 +131,8 @@ namespace KBCore.Refs
     [AttributeUsage(AttributeTargets.Field)]
     public class ParentAttribute : SceneRefAttribute
     {
-        public ParentAttribute(Flag flags = Flag.None) 
-            : base(RefLoc.Parent, flags: flags)
+        public ParentAttribute(Flag flags = Flag.None, Type filter = null) 
+            : base(RefLoc.Parent, flags, filter)
         {}
     }
     
@@ -126,8 +143,8 @@ namespace KBCore.Refs
     [AttributeUsage(AttributeTargets.Field)]
     public class ChildAttribute : SceneRefAttribute
     {
-        public ChildAttribute(Flag flags = Flag.None) 
-            : base(RefLoc.Child, flags: flags)
+        public ChildAttribute(Flag flags = Flag.None, Type filter = null) 
+            : base(RefLoc.Child, flags, filter)
         {}
     }
     
@@ -138,8 +155,8 @@ namespace KBCore.Refs
     [AttributeUsage(AttributeTargets.Field)]
     public class SceneAttribute : SceneRefAttribute
     {
-        public SceneAttribute(Flag flags = Flag.None) 
-            : base(RefLoc.Scene, flags: flags)
+        public SceneAttribute(Flag flags = Flag.None, Type filter = null) 
+            : base(RefLoc.Scene, flags, filter)
         {}
     }
 }

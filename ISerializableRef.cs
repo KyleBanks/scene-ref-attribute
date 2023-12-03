@@ -14,6 +14,8 @@ namespace KBCore.Refs
         /// <param name="value">Object to serialize.</param>
         /// <returns>True if the value has changed.</returns>
         bool OnSerialize(object value);
+
+        void Clear();
     }
 
     internal interface ISerializableRef<T> : ISerializableRef

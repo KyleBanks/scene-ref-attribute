@@ -50,5 +50,12 @@ namespace KBCore.Refs
             this._implementer = c;
             return true;
         }
+
+        void ISerializableRef.Clear()
+        {
+            this._hasCast = false;
+            this._value = null;
+            this._implementer = null;
+        }
     }
 }
