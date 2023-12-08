@@ -52,6 +52,8 @@ namespace KBCore.Refs
 
 #if UNITY_2020_3_OR_NEWER
                     Object[] objects = Object.FindObjectsByType(scriptType, FindObjectsInactive.Include, FindObjectsSortMode.None);
+#elif UNITY_2020_1_OR_NEWER
+                    Object[] objects = Object.FindObjectsOfType(scriptType, true);
 #else
                     Object[] objects = Object.FindObjectsOfType(scriptType);
 #endif
@@ -256,44 +258,49 @@ namespace KBCore.Refs
 
             object value = null;
 
+            //INFO: when minimal unity version will be sufficiently high, explicit casts to object will not be necessary.
             switch (attr.Loc)
             {
                 case RefLoc.Anywhere:
                     if (isCollection ? typeof(ISerializableRef).IsAssignableFrom(fieldType.GetElementType()) : iSerializable != null)
                     {
                         value = isCollection
-                            ? (existingValue as ISerializableRef[])?.Select(existingRef => GetComponentIfWrongType(existingRef.SerializedObject, elementType)).ToArray()
-                            : GetComponentIfWrongType(existingValue, elementType);
+                            ? (object)(existingValue as ISerializableRef[])?.Select(existingRef => GetComponentIfWrongType(existingRef.SerializedObject, elementType)).ToArray()
+                            : (object)GetComponentIfWrongType(existingValue, elementType);
                     }
                     break;
 
                 case RefLoc.Self:
                     value = isCollection
-                        ? component.GetComponents(elementType)
-                        : component.GetComponent(elementType);
+                        ? (object)component.GetComponents(elementType)
+                        : (object)component.GetComponent(elementType);
                     break;
 
                 case RefLoc.Parent:
                     value = isCollection
-                        ? GetComponentsInParent(component, elementType, includeInactive, excludeSelf)
-                        : GetComponentInParent(component, elementType, includeInactive, excludeSelf);
+                        ? (object)GetComponentsInParent(component, elementType, includeInactive, excludeSelf)
+                        : (object)GetComponentInParent(component, elementType, includeInactive, excludeSelf);
                     break;
 
                 case RefLoc.Child:
                     value = isCollection
-                        ? GetComponentsInChildren(component, elementType, includeInactive, excludeSelf)
-                        : GetComponentInChildren(component, elementType, includeInactive, excludeSelf);
+                        ? (object)GetComponentsInChildren(component, elementType, includeInactive, excludeSelf)
+                        : (object)GetComponentInChildren(component, elementType, includeInactive, excludeSelf);
                     break;
 
                 case RefLoc.Scene:
 #if UNITY_2020_3_OR_NEWER
                     value = isCollection
-                        ? Object.FindObjectsByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None)
-                        : Object.FindFirstObjectByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude);
+                        ? (object)Object.FindObjectsByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None)
+                        : (object)Object.FindFirstObjectByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude);
+#elif UNITY_2020_1_OR_NEWER
+                    value = isCollection
+                        ? (object)Object.FindObjectsOfType(elementType, includeInactive)
+                        : (object)Object.FindObjectOfType(elementType, includeInactive);
 #else
                     value = isCollection
-                         ? Object.FindObjectsOfType(elementType)
-                         : Object.FindObjectOfType(elementType);
+                        ? (object)Object.FindObjectsOfType(elementType)
+                        : (object)Object.FindObjectOfType(elementType);
 #endif
                     break;
 
