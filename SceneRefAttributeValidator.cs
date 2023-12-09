@@ -50,7 +50,9 @@ namespace KBCore.Refs
                         continue;
                     }
 
-#if UNITY_2020_OR_NEWER
+#if UNITY_2020_3_OR_NEWER
+                    Object[] objects = Object.FindObjectsByType(scriptType, FindObjectsInactive.Include, FindObjectsSortMode.None);
+#elif UNITY_2020_1_OR_NEWER
                     Object[] objects = Object.FindObjectsOfType(scriptType, true);
 #else
                     Object[] objects = Object.FindObjectsOfType(scriptType);
@@ -213,6 +215,7 @@ namespace KBCore.Refs
         )
         {
             Type fieldType = field.FieldType;
+            bool excludeSelf = attr.HasFlags(Flag.ExcludeSelf);
             bool isCollection = IsCollectionType(fieldType, out bool _, out bool isList);
             bool includeInactive = attr.HasFlags(Flag.IncludeInactive);
 
@@ -255,14 +258,15 @@ namespace KBCore.Refs
 
             object value = null;
 
+            //INFO: when minimal unity version will be sufficiently high, explicit casts to object will not be necessary.
             switch (attr.Loc)
             {
                 case RefLoc.Anywhere:
                     if (isCollection ? typeof(ISerializableRef).IsAssignableFrom(fieldType.GetElementType()) : iSerializable != null)
                     {
                         value = isCollection
-                            ? (existingValue as ISerializableRef[])?.Select(existingRef => GetComponentIfWrongType(existingRef.SerializedObject, elementType)).ToArray()
-                            : GetComponentIfWrongType(existingValue, elementType);
+                            ? (object)(existingValue as ISerializableRef[])?.Select(existingRef => GetComponentIfWrongType(existingRef.SerializedObject, elementType)).ToArray()
+                            : (object)GetComponentIfWrongType(existingValue, elementType);
                     }
                     break;
 
@@ -273,33 +277,30 @@ namespace KBCore.Refs
                     break;
 
                 case RefLoc.Parent:
-#if UNITY_2020_OR_NEWER
                     value = isCollection
-                        ? c.GetComponentsInParent(elementType, includeInactive)
-                        : (object)c.GetComponentInParent(elementType, includeInactive);
-#else
-                    value = isCollection
-                        ? (object)component.GetComponentsInParent(elementType, includeInactive)
-                        : (object)component.GetComponentInParent(elementType, includeInactive);
-#endif
-
+                        ? (object)GetComponentsInParent(component, elementType, includeInactive, excludeSelf)
+                        : (object)GetComponentInParent(component, elementType, includeInactive, excludeSelf);
                     break;
 
                 case RefLoc.Child:
                     value = isCollection
-                        ? (object)component.GetComponentsInChildren(elementType, includeInactive)
-                        : (object)component.GetComponentInChildren(elementType, includeInactive);
+                        ? (object)GetComponentsInChildren(component, elementType, includeInactive, excludeSelf)
+                        : (object)GetComponentInChildren(component, elementType, includeInactive, excludeSelf);
                     break;
 
                 case RefLoc.Scene:
-#if UNITY_2020_OR_NEWER
+#if UNITY_2020_3_OR_NEWER
+                    value = isCollection
+                        ? (object)Object.FindObjectsByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None)
+                        : (object)Object.FindFirstObjectByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude);
+#elif UNITY_2020_1_OR_NEWER
                     value = isCollection
                         ? (object)Object.FindObjectsOfType(elementType, includeInactive)
                         : (object)Object.FindObjectOfType(elementType, includeInactive);
 #else
                     value = isCollection
-                         ? (object)Object.FindObjectsOfType(elementType)
-                         : (object)Object.FindObjectOfType(elementType);
+                        ? (object)Object.FindObjectsOfType(elementType)
+                        : (object)Object.FindObjectOfType(elementType);
 #endif
                     break;
 
@@ -387,7 +388,7 @@ namespace KBCore.Refs
 
                     foreach (object s in (IEnumerable)value)
                     {
-                        addMethod.Invoke(newList, new object[] { s });
+                        addMethod.Invoke(newList, new [] { s });
                     }
 
                     field.SetValue(component, newList);
@@ -442,12 +443,13 @@ namespace KBCore.Refs
 
             if (IsEmptyOrNull(value, isCollection))
             {
-                if (!attr.HasFlags(Flag.Optional))
-                {
-                    Type elementType = isCollection ? fieldType.GetElementType() : fieldType;
-                    elementType = typeof(ISerializableRef).IsAssignableFrom(elementType) ? elementType?.GetGenericArguments()[0] : elementType;
-                    Debug.LogError($"{c.GetType().Name} missing required {elementType?.Name + (isCollection ? "[]" : "")} ref '{field.Name}'", c.gameObject);
-                }
+                if (attr.HasFlags(Flag.Optional))
+                    return;
+
+                Type elementType = isCollection ? fieldType.GetElementType() : fieldType;
+                elementType = typeof(ISerializableRef).IsAssignableFrom(elementType) ? elementType?.GetGenericArguments()[0] : elementType;
+                Debug.LogError($"{c.GetType().Name} missing required {elementType?.Name + (isCollection ? "[]" : "")} ref '{field.Name}'", c.gameObject);
+
                 return;
             }
 
@@ -455,6 +457,9 @@ namespace KBCore.Refs
             {
                 IEnumerable a = (IEnumerable)value;
                 IEnumerator enumerator = a.GetEnumerator();
+
+                Type elementType = fieldType.GetElementType();
+
                 while (enumerator.MoveNext())
                 {
                     object o = enumerator.Current;
@@ -462,9 +467,13 @@ namespace KBCore.Refs
                     {
                         o = serObj.SerializedObject;
                     }
-
+                    
                     if (o != null)
                     {
+                        if (attr.HasFlags(Flag.ExcludeSelf) && o is Component valueC &&
+                            valueC.gameObject == c.gameObject)
+                            Debug.LogError($"{c.GetType().Name} {elementType?.Name}[] ref '{field.Name}' cannot contain component from the same GameObject", c.gameObject);
+                        
                         ValidateRefLocation(attr.Loc, c, field, o);
                     }
                     else
@@ -474,7 +483,10 @@ namespace KBCore.Refs
                 }
             }
             else
-            { 
+            {
+                if (attr.HasFlags(Flag.ExcludeSelf) && value is Component valueC && valueC.gameObject == c.gameObject)
+                    Debug.LogError($"{c.GetType().Name} {fieldType.Name} ref '{field.Name}' cannot be on the same GameObject", c.gameObject);
+                
                 ValidateRefLocation(attr.Loc, c, field, value);
             }
         }
@@ -566,6 +578,69 @@ namespace KBCore.Refs
             isList = t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>);
             isArray = t.IsArray;
             return isList || isArray;
+        }
+        
+        private static Component[] GetComponentsInParent(Component c, Type elementType, bool includeInactive, bool excludeSelf)
+        {
+            var element = c;
+            if (excludeSelf)
+                element = c.transform.parent;
+
+            return element == null
+                ? Array.Empty<Component>()
+                : element.GetComponentsInParent(elementType, includeInactive);
+        }
+
+        private static Component GetComponentInParent(Component c, Type elementType, bool includeInactive,
+            bool excludeSelf)
+        {
+            var element = c;
+            if (excludeSelf)
+                element = c.transform.parent;
+
+            return element == null
+                ? null
+                : element.GetComponentInParent(elementType, includeInactive);
+        }
+
+        private static Component[] GetComponentsInChildren(Component c, Type elementType, bool includeInactive, bool excludeSelf)
+        {
+            if (!excludeSelf)
+                return c.GetComponentsInChildren(elementType, includeInactive);
+
+            List<Component> components = new List<Component>();
+
+            var transform = c.transform;
+            int childCount = transform.childCount;
+
+            for (int i = 0; i < childCount; ++i)
+            {
+                var child = transform.GetChild(i);
+                components.AddRange(child.GetComponentsInChildren(elementType, includeInactive));
+            }
+            
+            return components.ToArray();
+        }
+        
+        private static Component GetComponentInChildren(Component c, Type elementType, bool includeInactive,
+            bool excludeSelf)
+        {
+            if (!excludeSelf)
+                return c.GetComponentInChildren(elementType, includeInactive);
+
+            var transform = c.transform;
+            int childCount = transform.childCount;
+
+            for (int i = 0; i < childCount; ++i)
+            {
+                var child = transform.GetChild(i);
+                var component = child.GetComponentInChildren(elementType, includeInactive);
+                
+                if (component != null)
+                    return component;
+            }
+            
+            return null;
         }
     }
 }
