@@ -25,9 +25,9 @@ namespace KBCore.Refs
         /// Validate all references for every script and every game object in the scene.
         /// </summary>
         [MenuItem("Tools/KBCore/Validate All Refs")]
-        [SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Used as menu item action")]
-        private static void ValidateAllRefs()
+        public static bool ValidateAllRefs()
         {
+            var validationSuccess = true;
             MonoScript[] scripts = MonoImporter.GetAllRuntimeMonoScripts();
             for (int i = 0; i < scripts.Length; i++)
             {
@@ -66,7 +66,7 @@ namespace KBCore.Refs
                     Debug.Log($"Validating {ATTRIBUTED_FIELDS_CACHE.Count} field(s) on {objects.Length} {objects[0].GetType().Name} instance(s)");
                     for (int o = 0; o < objects.Length; o++)
                     {
-                        Validate(objects[o] as MonoBehaviour, ATTRIBUTED_FIELDS_CACHE, false);
+                        validationSuccess &= Validate(objects[o] as MonoBehaviour, ATTRIBUTED_FIELDS_CACHE, false);
                     }
                 }
                 finally
@@ -74,6 +74,7 @@ namespace KBCore.Refs
                     ATTRIBUTED_FIELDS_CACHE.Clear();
                 }
             }
+            return validationSuccess;
         }
 
         /// <summary>
@@ -146,7 +147,7 @@ namespace KBCore.Refs
             }
         }
 
-        private static void Validate(
+        private static bool Validate(
             Component c,
             IList<ReflectionUtil.AttributedField<SceneRefAttribute>> requiredFields,
             bool updateAtRuntime
@@ -155,9 +156,10 @@ namespace KBCore.Refs
             if (requiredFields.Count == 0)
             {
                 Debug.LogWarning($"{c.GetType().Name} has no required fields", c.gameObject);
-                return;
+                return true;
             }
 
+            var validationSuccess = true;
             bool isUninstantiatedPrefab = PrefabUtil.IsUninstantiatedPrefab(c.gameObject);
             for (int i = 0; i < requiredFields.Count; i++)
             {
@@ -181,8 +183,9 @@ namespace KBCore.Refs
                     continue;
                 }
 
-                ValidateRef(attribute, c, field, fieldValue);
+                validationSuccess &= ValidateRef(attribute, c, field, fieldValue);
             }
+            return validationSuccess;
         }
 
         private static void Clean(
@@ -431,7 +434,7 @@ namespace KBCore.Refs
             return existingValue;
         }
 
-        private static void ValidateRef(SceneRefAttribute attr, Component c, FieldInfo field, object value)
+        private static bool ValidateRef(SceneRefAttribute attr, Component c, FieldInfo field, object value)
         {
             Type fieldType = field.FieldType;
             bool isCollection = IsCollectionType(fieldType, out bool _, out bool _);
@@ -444,17 +447,18 @@ namespace KBCore.Refs
             if (IsEmptyOrNull(value, isCollection))
             {
                 if (attr.HasFlags(Flag.Optional))
-                    return;
+                    return true;
 
                 Type elementType = isCollection ? fieldType.GetElementType() : fieldType;
                 elementType = typeof(ISerializableRef).IsAssignableFrom(elementType) ? elementType?.GetGenericArguments()[0] : elementType;
                 Debug.LogError($"{c.GetType().Name} missing required {elementType?.Name + (isCollection ? "[]" : "")} ref '{field.Name}'", c.gameObject);
 
-                return;
+                return false;
             }
 
             if (isCollection)
             {
+                var validationSuccess = true;
                 IEnumerable a = (IEnumerable)value;
                 IEnumerator enumerator = a.GetEnumerator();
 
@@ -473,46 +477,45 @@ namespace KBCore.Refs
                         if (attr.HasFlags(Flag.ExcludeSelf) && o is Component valueC &&
                             valueC.gameObject == c.gameObject)
                             Debug.LogError($"{c.GetType().Name} {elementType?.Name}[] ref '{field.Name}' cannot contain component from the same GameObject", c.gameObject);
-                        
-                        ValidateRefLocation(attr.Loc, c, field, o);
+
+                        validationSuccess &= ValidateRefLocation(attr.Loc, c, field, o);
                     }
                     else
                     {
                         Debug.LogError($"{c.GetType().Name} missing required element ref in array '{field.Name}'", c.gameObject);
+                        validationSuccess = false;
                     }
                 }
+                return validationSuccess;
             }
             else
             {
                 if (attr.HasFlags(Flag.ExcludeSelf) && value is Component valueC && valueC.gameObject == c.gameObject)
                     Debug.LogError($"{c.GetType().Name} {fieldType.Name} ref '{field.Name}' cannot be on the same GameObject", c.gameObject);
-                
-                ValidateRefLocation(attr.Loc, c, field, value);
+
+                return ValidateRefLocation(attr.Loc, c, field, value);
             }
         }
 
-        private static void ValidateRefLocation(RefLoc loc, Component c, FieldInfo field, object refObj)
+        private static bool ValidateRefLocation(RefLoc loc, Component c, FieldInfo field, object refObj)
         {
             switch (refObj)
             {
                 case Component valueC:
-                    ValidateRefLocation(loc, c, field, valueC);
-                    break;
+                    return ValidateRefLocation(loc, c, field, valueC);
 
                 case ScriptableObject _:
-                    ValidateRefLocationAnywhere(loc, c, field);
-                    break;
+                    return ValidateRefLocationAnywhere(loc, c, field);
 
                 case GameObject _:
-                    ValidateRefLocationAnywhere(loc, c, field);
-                    break;
+                    return ValidateRefLocationAnywhere(loc, c, field);
 
                 default:
                     throw new Exception($"{c.GetType().Name} has unexpected reference type {refObj?.GetType().Name}");
             }
         }
 
-        private static void ValidateRefLocation(RefLoc loc, Component c, FieldInfo field, Component refObj)
+        private static bool ValidateRefLocation(RefLoc loc, Component c, FieldInfo field, Component refObj)
         {
             switch (loc)
             {
@@ -521,42 +524,58 @@ namespace KBCore.Refs
 
                 case RefLoc.Self:
                     if (refObj.gameObject != c.gameObject)
+                    {
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be on Self", c.gameObject);
+                        return false;
+                    }
+
                     break;
 
                 case RefLoc.Parent:
                     if (!c.transform.IsChildOf(refObj.transform))
+                    {
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be a Parent", c.gameObject);
+                        return false;
+                    }
+
                     break;
 
                 case RefLoc.Child:
                     if (!refObj.transform.IsChildOf(c.transform))
+                    {
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be a Child", c.gameObject);
+                        return false;
+                    }
+
                     break;
 
                 case RefLoc.Scene:
                     if (c == null)
+                    {
                         Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be in the scene", c.gameObject);
+                        return false;
+                    }
                     break;
 
                 default:
                     throw new Exception($"Unhandled Loc={loc}");
             }
+            return true;
         }
 
-        private static void ValidateRefLocationAnywhere(RefLoc loc, Component c, FieldInfo field)
+        private static bool ValidateRefLocationAnywhere(RefLoc loc, Component c, FieldInfo field)
         {
             switch (loc)
             {
                 case RefLoc.Anywhere:
-                    break;
+                    return true;
 
                 case RefLoc.Self:
                 case RefLoc.Parent:
                 case RefLoc.Child:
                 case RefLoc.Scene:
                     Debug.LogError($"{c.GetType().Name} requires {field.FieldType.Name} ref '{field.Name}' to be Anywhere", c.gameObject);
-                    break;
+                    return false;
 
                 default:
                     throw new Exception($"Unhandled Loc={loc}");
