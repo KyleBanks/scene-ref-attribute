@@ -292,21 +292,8 @@ namespace KBCore.Refs
                     break;
 
                 case RefLoc.Scene:
-#if UNITY_2020_3_OR_NEWER
-                    value = isCollection
-                        ? (object)Object.FindObjectsByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None)
-                        : (object)Object.FindFirstObjectByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude);
-#elif UNITY_2020_1_OR_NEWER
-                    value = isCollection
-                        ? (object)Object.FindObjectsOfType(elementType, includeInactive)
-                        : (object)Object.FindObjectOfType(elementType, includeInactive);
-#else
-                    value = isCollection
-                        ? (object)Object.FindObjectsOfType(elementType)
-                        : (object)Object.FindObjectOfType(elementType);
-#endif
+                    value = GetComponentsInScene(elementType, includeInactive, isCollection, excludeSelf);
                     break;
-
                 default:
                     throw new Exception($"Unhandled Loc={attr.Loc}");
             }
@@ -660,6 +647,40 @@ namespace KBCore.Refs
             }
             
             return null;
+        }
+
+        private static object GetComponentsInScene(Type elementType, bool includeInactive, bool isCollection, bool excludeSelf)
+        {
+            bool isUnityType = elementType.IsSubclassOf(typeof(Object));
+            
+#if UNITY_2020_3_OR_NEWER
+            if (isUnityType)
+                return isCollection
+                    ? (object)Object.FindObjectsByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None)
+                    : (object)Object.FindFirstObjectByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude);
+
+            var elements = Object.FindObjectsByType<MonoBehaviour>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+#elif UNITY_2020_1_OR_NEWER
+            if (isUnityType)
+                return isCollection
+                    ? (object)Object.FindObjectsOfType(elementType, includeInactive)
+                    : (object)Object.FindObjectOfType(elementType, includeInactive);
+
+            var elements = Object.FindObjectsOfType<MonoBehaviour>(includeInactive);
+#else
+            if (isUnityType)
+                return isCollection
+                    ? (object)Object.FindObjectsOfType(elementType)
+                    : (object)Object.FindObjectOfType(elementType);
+            var elements = Object.FindObjectsOfType<MonoBehaviour>();
+#endif
+            elements = elements.Where(IsCorrectType).ToArray();
+            if (isCollection)
+                return (object)elements;
+
+            return (object)(elements.Length > 0 ? elements[0] : null);
+            
+            bool IsCorrectType(MonoBehaviour e) => elementType.IsInterface ? e.GetType().GetInterfaces().Contains(elementType) : e.GetType().IsSubclassOf(elementType);
         }
     }
 }
