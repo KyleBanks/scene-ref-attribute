@@ -51,7 +51,7 @@ namespace KBCore.Refs
                     }
 
 #if UNITY_2020_3_OR_NEWER
-                    Object[] objects = Object.FindObjectsByType(scriptType, FindObjectsInactive.Include, FindObjectsSortMode.None);
+                    Object[] objects = Object.FindObjectsByType(scriptType, FindObjectsInactive.Include, FindObjectsSortMode.InstanceID);
 #elif UNITY_2020_1_OR_NEWER
                     Object[] objects = Object.FindObjectsOfType(scriptType, true);
 #else
@@ -656,10 +656,10 @@ namespace KBCore.Refs
 #if UNITY_2020_3_OR_NEWER
             if (isUnityType)
                 return isCollection
-                    ? (object)Object.FindObjectsByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None)
+                    ? (object)Object.FindObjectsByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.InstanceID)
                     : (object)Object.FindFirstObjectByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude);
 
-            var elements = Object.FindObjectsByType<MonoBehaviour>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            var elements = Object.FindObjectsByType<MonoBehaviour>(includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.InstanceID);
 #elif UNITY_2020_1_OR_NEWER
             if (isUnityType)
                 return isCollection
