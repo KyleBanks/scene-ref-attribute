@@ -15,7 +15,7 @@ namespace KBCore.Refs
         
         public static bool ValidateRefsOnSave
         {
-            get => EditorPrefs.GetBool(PrefsKey, true);
+            get => EditorPrefs.GetBool(PrefsKey, false);
             private set => EditorPrefs.SetBool(PrefsKey, value);
         }
         
