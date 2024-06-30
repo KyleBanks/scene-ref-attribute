@@ -7,9 +7,12 @@ namespace KBCore.Refs
         public static int CountEnumerable(this IEnumerable enumerable)
         {
             int count = 0;
-            foreach (var item in enumerable)
+            if (enumerable != null)
             {
-                count++;
+                foreach (object _ in enumerable)
+                {
+                    count++;
+                }
             }
             return count;
         }
