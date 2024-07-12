@@ -50,7 +50,7 @@ namespace KBCore.Refs
                         continue;
                     }
 
-#if UNITY_2020_3_OR_NEWER
+#if UNITY_2021_3_18_OR_NEWER
                     Object[] objects = Object.FindObjectsByType(scriptType, FindObjectsInactive.Include, FindObjectsSortMode.InstanceID);
 #elif UNITY_2020_1_OR_NEWER
                     Object[] objects = Object.FindObjectsOfType(scriptType, true);
@@ -653,7 +653,7 @@ namespace KBCore.Refs
         {
             bool isUnityType = elementType.IsSubclassOf(typeof(Object));
             
-#if UNITY_2020_3_OR_NEWER
+#if UNITY_2021_3_18_OR_NEWER
             if (isUnityType)
                 return isCollection
                     ? (object)Object.FindObjectsByType(elementType, includeInactive ? FindObjectsInactive.Include : FindObjectsInactive.Exclude, FindObjectsSortMode.InstanceID)
