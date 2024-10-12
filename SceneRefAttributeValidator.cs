@@ -425,12 +425,13 @@ namespace KBCore.Refs
         {
             Type fieldType = field.FieldType;
             bool isCollection = IsCollectionType(fieldType, out bool _, out bool _);
+            bool isOverridable = attr.HasFlags(Flag.Overridable);
 
             if (value is ISerializableRef ser)
             {
                 value = ser.SerializedObject;
             }
-
+            
             if (IsEmptyOrNull(value, isCollection))
             {
                 if (attr.HasFlags(Flag.Optional))
@@ -461,6 +462,9 @@ namespace KBCore.Refs
                     
                     if (o != null)
                     {
+                        if (isOverridable)
+                            continue;
+                        
                         if (attr.HasFlags(Flag.ExcludeSelf) && o is Component valueC &&
                             valueC.gameObject == c.gameObject)
                             Debug.LogError($"{c.GetType().Name} {elementType?.Name}[] ref '{field.Name}' cannot contain component from the same GameObject", c.gameObject);
@@ -477,6 +481,9 @@ namespace KBCore.Refs
             }
             else
             {
+                if (isOverridable)
+                    return true;
+                
                 if (attr.HasFlags(Flag.ExcludeSelf) && value is Component valueC && valueC.gameObject == c.gameObject)
                     Debug.LogError($"{c.GetType().Name} {fieldType.Name} ref '{field.Name}' cannot be on the same GameObject", c.gameObject);
 
