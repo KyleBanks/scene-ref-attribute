@@ -431,7 +431,7 @@ namespace KBCore.Refs
             {
                 value = ser.SerializedObject;
             }
-            
+
             if (IsEmptyOrNull(value, isCollection))
             {
                 if (attr.HasFlags(Flag.Optional))
