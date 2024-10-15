@@ -425,7 +425,7 @@ namespace KBCore.Refs
         {
             Type fieldType = field.FieldType;
             bool isCollection = IsCollectionType(fieldType, out bool _, out bool _);
-            bool isOverridable = attr.HasFlags(Flag.Overridable);
+            bool isOverridable = attr.HasFlags(Flag.EditableAnywhere);
 
             if (value is ISerializableRef ser)
             {

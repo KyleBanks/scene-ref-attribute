@@ -130,7 +130,7 @@ private ParticleSystem[] _particles;
 - `ExcludeSelf` only affects `Parent` and `Child`, and determines whether components on this `GameObject` are included in the results. By default, components on this `GameObject` are included.
 - `Editable` only affects `Parent`, `Child` and `Scene`, and allows you to edit the resulting reference. This is useful, for example, if you have two children who would satisfy a reference but you want to manually select which reference is used. 
 - `Filter` allows you to implement custom logic to filter references. See **Filters** below.
-
+- `EditableAnywhere` has the same effect as `Editable` but will not validate the supplied reference. This allows you to manually specify a reference with an automatic fallback.
 ### Filters
 
 This project also provides support for filtering references based on custom logic. 
