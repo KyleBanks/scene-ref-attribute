@@ -62,6 +62,10 @@ namespace KBCore.Refs
         /// Excludes components on current GameObject from search(only applies to Child and Parent).
         /// </summary>
         ExcludeSelf = 1 << 3,
+        /// <summary>
+        /// Allows the user to manually set the reference and does not validate the location if manually set
+        /// </summary>
+        EditableAnywhere = 1 << 4 | Editable
     }
     
     /// <summary>
