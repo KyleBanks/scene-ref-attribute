@@ -8,7 +8,7 @@ namespace KBCore.Refs
     /// </summary>
     /// <typeparam name="T">Component type to find and serialize.</typeparam>
     [Serializable]
-    public class InterfaceRef<T> : ISerializableRef<T>
+    public class InterfaceRef<T> : ISerializableRef<T>, IEquatable<InterfaceRef<T>>
         where T : class
     {
 
@@ -56,6 +56,13 @@ namespace KBCore.Refs
             this._hasCast = false;
             this._value = null;
             this._implementer = null;
+        }
+
+        public override bool Equals(object obj) => obj is InterfaceRef<T> casted && Equals(casted);
+
+        public bool Equals(InterfaceRef<T> other)
+        {
+            return other != null && _implementer == other._implementer;
         }
     }
 }
