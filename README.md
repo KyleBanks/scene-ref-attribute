@@ -103,7 +103,7 @@ doorOpener.OpenDoor();
 - `Self` looks for the reference on the same game object as the attributed component using `GetComponent(s)()`
 - `Parent` looks for the reference on the parent hierarchy of the attributed components game object using `GetComponent(s)InParent()`
 - `Child` looks for the reference on the child hierarchy of the attributed components game object using `GetComponent(s)InChildren()`
-- `Scene` looks for the reference anywhere in the scene using `FindAnyObjectByType` and `FindObjectsOfType`
+- `Scene` looks for the reference anywhere in the scene that contains the component (other loaded scenes are ignored), using `FindObjectsByType` and `FindObjectsOfType`
 - `Anywhere` will only validate the reference isn't null, but relies on you to assign the reference yourself.
 
 ### Flags
